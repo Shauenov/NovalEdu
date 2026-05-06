@@ -1,0 +1,14 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Appointment Cancelled</title>
+  </head>
+  <body>
+    <p>Hi {{ full_name }},</p>
+    <p>Your appointment for {{ appointment_time }} has been cancelled.</p>
+    {% if reason %}
+    <p>Reason: {{ reason }}</p>
+    {% endif %}
+  </body>
+</html>

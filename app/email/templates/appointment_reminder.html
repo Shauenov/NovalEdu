@@ -1,0 +1,14 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Appointment Reminder</title>
+  </head>
+  <body>
+    <p>Hi {{ full_name }},</p>
+    <p>This is a reminder for your appointment at {{ appointment_time }}.</p>
+    {% if participant_name %}
+    <p>With: {{ participant_name }}</p>
+    {% endif %}
+  </body>
+</html>

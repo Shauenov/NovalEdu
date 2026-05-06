@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>New Task</title>
+  </head>
+  <body>
+    <p>Hi {{ full_name }},</p>
+    <p>You have a new task: <strong>{{ task_title }}</strong>.</p>
+    {% if deadline %}
+    <p>Deadline: {{ deadline }}</p>
+    {% endif %}
+    {% if description %}
+    <p>{{ description }}</p>
+    {% endif %}
+    {% if assigned_by %}
+    <p>Assigned by: {{ assigned_by }}</p>
+    {% endif %}
+  </body>
+</html>

@@ -1,0 +1,14 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Appointment Confirmed</title>
+  </head>
+  <body>
+    <p>Hi {{ full_name }},</p>
+    <p>Your appointment is confirmed for {{ appointment_time }}.</p>
+    {% if participant_name %}
+    <p>With: {{ participant_name }}</p>
+    {% endif %}
+  </body>
+</html>

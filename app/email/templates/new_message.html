@@ -1,0 +1,14 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>New Message</title>
+  </head>
+  <body>
+    <p>Hi {{ full_name }},</p>
+    <p>You have a new message from {{ sender_name }}.</p>
+    {% if message_preview %}
+    <blockquote>{{ message_preview }}</blockquote>
+    {% endif %}
+  </body>
+</html>

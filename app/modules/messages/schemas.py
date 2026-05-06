@@ -1,0 +1,68 @@
+from datetime import datetime
+from typing import List
+from uuid import UUID
+
+from pydantic import BaseModel, Field
+
+
+class MessageOut(BaseModel):
+    id: UUID
+    conversation_id: UUID
+    sender_id: UUID
+    sender_name: str | None = None
+    sender_role: str | None = None
+    body: str
+    is_read: bool
+    read_at: datetime | None = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ConversationOut(BaseModel):
+    id: UUID
+    student_id: UUID
+    conductor_id: UUID
+    last_message_at: datetime | None = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class SendMessageRequest(BaseModel):
+    body: str = Field(..., min_length=1, max_length=2000)
+
+
+class BroadcastRequest(BaseModel):
+    body: str = Field(..., min_length=1, max_length=2000)
+    filter_group: str | None = None
+    ielts_passed: bool | None = None
+
+
+class MessageResponse(BaseModel):
+    success: bool = True
+    data: MessageOut
+
+
+class MessagesResponse(BaseModel):
+    success: bool = True
+    data: list[MessageOut]
+
+
+class ConversationResponse(BaseModel):
+    success: bool = True
+    data: ConversationOut
+
+
+class ConversationsResponse(BaseModel):
+    success: bool = True
+    data: list[ConversationOut]
+
+
+class BroadcastResult(BaseModel):
+    sent: int
+
+
+class BroadcastResponse(BaseModel):
+    success: bool = True
+    data: BroadcastResult

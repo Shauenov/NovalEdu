@@ -1,0 +1,17 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Welcome</title>
+  </head>
+  <body>
+    <p>Hi {{ full_name }},</p>
+    <p>Welcome to EduConductor.</p>
+    {% if temporary_password %}
+    <p>Your temporary password: <strong>{{ temporary_password }}</strong></p>
+    {% endif %}
+    {% if login_url %}
+    <p>Sign in: <a href="{{ login_url }}">{{ login_url }}</a></p>
+    {% endif %}
+  </body>
+</html>

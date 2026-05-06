@@ -1,0 +1,17 @@
+# docker/Dockerfile
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# System deps for python-magic, asyncpg
+RUN apt-get update && apt-get install -y \
+    libmagic1 \
+    gcc \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+EXPOSE 8000
