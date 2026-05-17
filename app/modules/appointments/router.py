@@ -81,7 +81,7 @@ async def book_appointment(
     current_user: CurrentUser = Depends(get_current_user),
 ):
     svc = AppointmentsService(db)
-    appt = await svc.book(body.slot_id, UUID(current_user.user_id), body.notes)
+    appt = await svc.book(body.slot_id, UUID(current_user.user_id), body.notes, body.consultation_type)
     return AppointmentResponse(data=AppointmentOut.model_validate(appt))
 
 

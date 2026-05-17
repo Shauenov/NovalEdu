@@ -1,7 +1,7 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, time
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String, Text, func
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, SmallInteger, String, Text, Time, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -25,7 +25,12 @@ class Task(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     status: Mapped[str] = mapped_column(String(20), default="todo")
     priority: Mapped[str] = mapped_column(String(10), default="medium")
+    task_type: Mapped[str] = mapped_column(String(20), default="assignment")
     deadline: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    time_from: Mapped[time | None] = mapped_column(Time, nullable=True)
+    time_to: Mapped[time | None] = mapped_column(Time, nullable=True)
+    location: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    reminder_minutes: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     is_conductor_task: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

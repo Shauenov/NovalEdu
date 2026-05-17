@@ -9,6 +9,9 @@ class DocumentOut(BaseModel):
     id: UUID
     student_id: UUID
     doc_type: str
+    category: Literal["personal", "education", "financial", "other"]
+    status: Literal["active", "pending", "expired", "needs_update"]
+    expires_at: datetime | None
     url: str
     content_type: str
     size: int
@@ -20,6 +23,8 @@ class DocumentOut(BaseModel):
 class DocumentUploadResponse(BaseModel):
     id: UUID
     doc_type: str
+    category: str
+    status: str
     url: str
 
 

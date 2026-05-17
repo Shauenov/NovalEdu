@@ -93,6 +93,18 @@ class UsersService:
         await self.repo.delete(user)
         await self.db.commit()
 
+    async def deactivate_me(self, user_id: UUID) -> None:
+        """Soft-delete: deactivate account + revoke all tokens."""
+        user = await self.repo.get_by_id(user_id)
+        if not user:
+            raise NotFoundException("User not found")
+        user.is_active = False
+        # Revoke all refresh tokens
+        from sqlalchemy import delete as sa_delete
+        from app.modules.auth.models import RefreshToken
+        await self.db.execute(sa_delete(RefreshToken).where(RefreshToken.user_id == user_id))
+        await self.db.commit()
+
     async def invite_student(
         self,
         email: str,

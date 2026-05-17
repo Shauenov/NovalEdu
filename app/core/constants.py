@@ -14,6 +14,7 @@ MAX_PAGE_SIZE = 100
 
 # MinIO bucket names
 BUCKET_DOCUMENTS = "educonductor-documents"
+BUCKET_MESSAGES = "educonductor-messages"
 BUCKET_AVATARS = "educonductor-avatars"
 BUCKET_UNIVERSITIES = "educonductor-universities"
 BUCKET_NEWS = "educonductor-news"
@@ -22,6 +23,7 @@ BUCKET_ALUMNI = "educonductor-alumni"
 # All buckets with their public-read policy flag
 MINIO_BUCKETS: dict[str, bool] = {
     BUCKET_DOCUMENTS: False,    # private — signed URLs only
+    BUCKET_MESSAGES: True,      # public — direct URLs for embedded images
     BUCKET_AVATARS: True,
     BUCKET_UNIVERSITIES: True,
     BUCKET_NEWS: True,

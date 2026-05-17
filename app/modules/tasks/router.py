@@ -8,7 +8,7 @@ from app.core.constants import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.core.permissions import CurrentUser, get_current_user
 from app.core.response import SuccessResponse
 from app.database import get_db
-from app.modules.tasks.schemas import PaginatedMeta, PaginatedTasks, TaskCreate, TaskOut, TaskResponse, TaskStatusUpdate, TaskUpdate
+from app.modules.tasks.schemas import PaginatedMeta, PaginatedTasks, TaskCreate, TaskOut, TaskResponse, TaskStatsOut, TaskStatsResponse, TaskStatusUpdate, TaskUpdate
 from app.modules.tasks.service import TasksService
 
 router = APIRouter()
@@ -38,6 +38,23 @@ async def list_student_tasks(
         data=[TaskOut.model_validate(t) for t in tasks],
         meta=PaginatedMeta(page=page, page_size=page_size, total=total),
     )
+
+
+@router.get("/students/{student_id}/tasks/stats", response_model=TaskStatsResponse)
+async def get_student_task_stats(
+    student_id: UUID,
+    month: Optional[str] = Query(None, pattern=r"^\d{4}-\d{2}$", description="Format: YYYY-MM"),
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+) -> TaskStatsResponse:
+    service = TasksService(db)
+    stats = await service.get_task_stats(
+        student_id=student_id,
+        requester_id=UUID(current_user.user_id),
+        requester_role=current_user.role,
+        month=month,
+    )
+    return TaskStatsResponse(data=TaskStatsOut(**stats))
 
 
 @router.post("/students/{student_id}/tasks", response_model=TaskResponse, status_code=201)

@@ -1,10 +1,16 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, File, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.constants import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
-from app.core.permissions import CurrentUser, get_current_user, require_conductor_or_admin
+from app.storage.upload import process_and_upload_image
+
+from app.core.constants import BUCKET_UNIVERSITIES, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
+from app.core.permissions import (
+    CurrentUser,
+    get_current_user,
+    require_conductor_or_admin,
+)
 from app.core.response import SuccessResponse
 from app.database import get_db
 from app.modules.universities.schemas import (
@@ -66,7 +72,9 @@ async def get_university(
     current_user: CurrentUser = Depends(get_current_user),
 ) -> UniversityDetailResponse:
     service = UniversitiesService(db)
-    uni, programs = await service.get_university_detail(university_id, current_user.role)
+    uni, programs = await service.get_university_detail(
+        university_id, current_user.role
+    )
     detail = UniversityDetail(
         university=UniversityOut.model_validate(uni),
         programs=[UniversityProgramOut.model_validate(p) for p in programs],
@@ -108,7 +116,45 @@ async def delete_university(
     return SuccessResponse()
 
 
-@router.post("/{university_id}/programs", response_model=UniversityProgramResponse, status_code=201)
+@router.post("/{university_id}/logo", response_model=UniversityResponse)
+async def upload_university_logo(
+    university_id: UUID,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(require_conductor_or_admin()),
+) -> UniversityResponse:
+    logo_url = await process_and_upload_image(
+        file=file, bucket=BUCKET_UNIVERSITIES, prefix=f"{university_id}/logo"
+    )
+    service = UniversitiesService(db)
+    uni = await service.update_university(
+        university_id, UniversityUpdate(logo_url=logo_url), current_user.role
+    )
+    return UniversityResponse(data=UniversityOut.model_validate(uni))
+
+
+@router.post("/{university_id}/cover", response_model=UniversityResponse)
+async def upload_university_cover(
+    university_id: UUID,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(require_conductor_or_admin()),
+) -> UniversityResponse:
+    cover_url = await process_and_upload_image(
+        file=file, bucket=BUCKET_UNIVERSITIES, prefix=f"{university_id}/cover"
+    )
+    service = UniversitiesService(db)
+    uni = await service.update_university(
+        university_id, UniversityUpdate(cover_image_url=cover_url), current_user.role
+    )
+    return UniversityResponse(data=UniversityOut.model_validate(uni))
+
+
+@router.post(
+    "/{university_id}/programs",
+    response_model=UniversityProgramResponse,
+    status_code=201,
+)
 async def add_program(
     university_id: UUID,
     body: UniversityProgramCreate,
@@ -120,7 +166,9 @@ async def add_program(
     return UniversityProgramResponse(data=UniversityProgramOut.model_validate(program))
 
 
-@router.put("/{university_id}/programs/{program_id}", response_model=UniversityProgramResponse)
+@router.put(
+    "/{university_id}/programs/{program_id}", response_model=UniversityProgramResponse
+)
 async def update_program(
     university_id: UUID,
     program_id: UUID,
@@ -129,7 +177,9 @@ async def update_program(
     current_user: CurrentUser = Depends(require_conductor_or_admin()),
 ) -> UniversityProgramResponse:
     service = UniversitiesService(db)
-    program = await service.update_program(university_id, program_id, body, current_user.role)
+    program = await service.update_program(
+        university_id, program_id, body, current_user.role
+    )
     return UniversityProgramResponse(data=UniversityProgramOut.model_validate(program))
 
 

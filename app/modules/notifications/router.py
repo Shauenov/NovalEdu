@@ -17,13 +17,14 @@ router = APIRouter()
 async def list_notifications(
     page: int = Query(1, ge=1),
     page_size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
+    type: str | None = Query(None, description="Filter by type: admission, task, system"),
     request: Request = None,
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user),
 ) -> NotificationsResponse:
     service = NotificationsService(db, redis=request.app.state.redis)
     notifs, _ = await service.list_notifications(
-        UUID(current_user.user_id), page, page_size
+        UUID(current_user.user_id), page, page_size, notification_type=type
     )
     return NotificationsResponse(data=notifs)
 

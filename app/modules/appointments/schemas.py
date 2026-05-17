@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import List
+from typing import List, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, model_validator
@@ -34,6 +34,7 @@ class SlotOut(BaseModel):
 
 class BookRequest(BaseModel):
     slot_id: UUID
+    consultation_type: Literal["video", "audio", "chat"] = "video"
     notes: str | None = None
 
 
@@ -47,6 +48,7 @@ class AppointmentOut(BaseModel):
     student_id: UUID
     conductor_id: UUID
     status: str
+    consultation_type: str
     notes: str | None
     cancelled_at: datetime | None
     cancel_reason: str | None

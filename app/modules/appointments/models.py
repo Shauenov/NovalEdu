@@ -38,6 +38,7 @@ class Appointment(Base):
     student_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     conductor_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     status: Mapped[str] = mapped_column(String(50), nullable=False, default=APPOINTMENT_STATUS_PENDING)
+    consultation_type: Mapped[str] = mapped_column(String(20), nullable=False, default="video")
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     cancel_reason: Mapped[str | None] = mapped_column(Text, nullable=True)

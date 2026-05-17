@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -80,6 +80,24 @@ async def send_message(
     return MessageResponse(data=MessageOut.model_validate(msg))
 
 
+@router.post("/conversations/{convo_id}/messages/image", response_model=MessageResponse, status_code=201)
+async def send_image_message(
+    convo_id: UUID,
+    image: UploadFile = File(...),
+    body: str | None = Form(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+):
+    svc = MessagesService(db)
+    msg = await svc.send_message_with_image(
+        convo_id,
+        UUID(current_user.user_id),
+        image=image,
+        body=body,
+    )
+    return MessageResponse(data=MessageOut.model_validate(msg))
+
+
 @router.post("/broadcast", response_model=BroadcastResponse, status_code=201)
 async def broadcast_message(
     body: BroadcastRequest,
@@ -96,5 +114,39 @@ async def broadcast_message(
     else:
         convos = await svc.list_conversations_for_user(UUID(current_user.user_id), is_conductor=True)
         convo_ids = [c.id for c in convos]
-    await svc.broadcast(body.body, convo_ids, UUID(current_user.user_id))
-    return BroadcastResponse(data=BroadcastResult(sent=len(convo_ids)))
+    msgs = await svc.broadcast(body.body, convo_ids, UUID(current_user.user_id))
+    return BroadcastResponse(
+        data=BroadcastResult(
+            sent=len(convo_ids),
+            message_ids=[m.id for m in msgs],
+        )
+    )
+
+
+@router.post("/broadcast/image", response_model=BroadcastResponse, status_code=201)
+async def broadcast_image_message(
+    image: UploadFile = File(...),
+    body: str | None = Form(None),
+    filter_group: str | None = Form(None),
+    ielts_passed: bool | None = Form(None),
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(require_conductor_or_admin()),
+):
+    svc = MessagesService(db)
+    if filter_group or ielts_passed is not None:
+        convo_ids = await svc.list_conversation_ids_for_broadcast(
+            conductor_id=UUID(current_user.user_id),
+            group_type=filter_group,
+            ielts_passed=ielts_passed,
+        )
+    else:
+        convos = await svc.list_conversations_for_user(UUID(current_user.user_id), is_conductor=True)
+        convo_ids = [c.id for c in convos]
+
+    msgs = await svc.broadcast_with_image(body, convo_ids, UUID(current_user.user_id), image)
+    return BroadcastResponse(
+        data=BroadcastResult(
+            sent=len(convo_ids),
+            message_ids=[m.id for m in msgs],
+        )
+    )

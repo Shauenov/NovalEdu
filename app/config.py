@@ -37,6 +37,9 @@ class Settings(BaseSettings):
     max_document_size_mb: int = Field(10, alias="MAX_DOCUMENT_SIZE_MB")
     max_image_size_mb: int = Field(5, alias="MAX_IMAGE_SIZE_MB")
 
+    # MinIO public endpoint (for frontend access)
+    minio_public_endpoint: str = Field("localhost:9000", alias="MINIO_PUBLIC_ENDPOINT")
+
     # Conductor
     conductor_email: str = Field("conductor@college.edu.kz", alias="CONDUCTOR_EMAIL")
     conductor_initial_password: str = Field("change_immediately", alias="CONDUCTOR_INITIAL_PASSWORD")

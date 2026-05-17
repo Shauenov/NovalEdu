@@ -1,7 +1,10 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+
+from app.core.constants import BUCKET_ALUMNI
+from app.storage.minio_client import resolve_public_url
 
 
 class AlumniCreate(BaseModel):
@@ -53,6 +56,11 @@ class AlumniOut(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+    @model_validator(mode="after")
+    def normalize_photo_url(self):
+        self.photo_url = resolve_public_url(BUCKET_ALUMNI, self.photo_url)
+        return self
 
 
 class AlumniResponse(BaseModel):

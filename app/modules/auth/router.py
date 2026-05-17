@@ -17,6 +17,8 @@ from app.modules.auth.schemas import (
     RefreshRequest,
     RegisterRequest,
     ResetPasswordRequest,
+    SessionOut,
+    SessionsResponse,
     TokenResponse,
 )
 from app.modules.auth.service import AuthService
@@ -41,7 +43,9 @@ async def register(
     db: AsyncSession = Depends(get_db),
 ) -> TokenEnvelope:
     service = AuthService(db=db, redis=request.app.state.redis)
-    result = await service.register(body)
+    device_name = request.headers.get("X-Device-Name") or request.headers.get("User-Agent", "")[:100]
+    ip_address = request.client.host if request.client else None
+    result = await service.register(body, device_name=device_name, ip_address=ip_address)
     return TokenEnvelope(data=result)
 
 
@@ -53,7 +57,9 @@ async def login(
     db: AsyncSession = Depends(get_db),
 ) -> TokenEnvelope:
     service = AuthService(db=db, redis=request.app.state.redis)
-    result = await service.login(body)
+    device_name = request.headers.get("X-Device-Name") or request.headers.get("User-Agent", "")[:100]
+    ip_address = request.client.host if request.client else None
+    result = await service.login(body, device_name=device_name, ip_address=ip_address)
     return TokenEnvelope(data=result)
 
 
@@ -112,4 +118,38 @@ async def change_password(
 ) -> SuccessResponse:
     service = AuthService(db=db, redis=request.app.state.redis)
     await service.change_password(UUID(current_user.user_id), body)
+    return SuccessResponse()
+
+
+@router.get("/sessions", response_model=SessionsResponse)
+async def list_sessions(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+) -> SessionsResponse:
+    service = AuthService(db=db, redis=request.app.state.redis)
+    sessions = await service.list_sessions(UUID(current_user.user_id))
+    return SessionsResponse(data=[SessionOut.model_validate(s) for s in sessions])
+
+
+@router.delete("/sessions", response_model=SuccessResponse)
+async def close_all_sessions(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+) -> SuccessResponse:
+    service = AuthService(db=db, redis=request.app.state.redis)
+    await service.delete_all_sessions(UUID(current_user.user_id))
+    return SuccessResponse()
+
+
+@router.delete("/sessions/{session_id}", response_model=SuccessResponse)
+async def close_session(
+    session_id: UUID,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+) -> SuccessResponse:
+    service = AuthService(db=db, redis=request.app.state.redis)
+    await service.delete_session(session_id, UUID(current_user.user_id))
     return SuccessResponse()

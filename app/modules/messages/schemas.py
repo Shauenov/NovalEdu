@@ -12,6 +12,9 @@ class MessageOut(BaseModel):
     sender_name: str | None = None
     sender_role: str | None = None
     body: str
+    image_url: str | None = None
+    image_content_type: str | None = None
+    image_size: int | None = None
     is_read: bool
     read_at: datetime | None = None
     created_at: datetime
@@ -61,6 +64,7 @@ class ConversationsResponse(BaseModel):
 
 class BroadcastResult(BaseModel):
     sent: int
+    message_ids: list[UUID] | None = None
 
 
 class BroadcastResponse(BaseModel):

@@ -88,7 +88,13 @@ class AppointmentsService:
     async def list_available_slots(self, conductor_id: UUID | None = None, from_time: datetime | None = None):
         return await self.repo.list_available_slots(conductor_id=conductor_id, from_time=from_time)
 
-    async def book(self, slot_id: UUID, student_id: UUID, notes: str | None = None):
+    async def book(
+        self,
+        slot_id: UUID,
+        student_id: UUID,
+        notes: str | None = None,
+        consultation_type: str = "video",
+    ):
         slot = await self.repo.get_slot(slot_id)
         if not slot:
             raise NotFoundException("Slot not found")
@@ -103,6 +109,7 @@ class AppointmentsService:
             student_id=student_id,
             conductor_id=slot.conductor_id,
             status=APPOINTMENT_STATUS_CONFIRMED,
+            consultation_type=consultation_type,
             notes=notes,
         )
         user_repo = UsersRepository(self.db)

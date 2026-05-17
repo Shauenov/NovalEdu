@@ -30,7 +30,12 @@ class TasksService:
             title=data.title,
             description=data.description,
             priority=data.priority,
+            task_type=data.task_type,
             deadline=data.deadline,
+            time_from=data.time_from,
+            time_to=data.time_to,
+            location=data.location,
+            reminder_minutes=data.reminder_minutes,
             student_roadmap_id=data.student_roadmap_id,
             is_conductor_task=True,
         )
@@ -96,7 +101,12 @@ class TasksService:
             title=data.title,
             description=data.description,
             priority=data.priority,
+            task_type=data.task_type,
             deadline=data.deadline,
+            time_from=data.time_from,
+            time_to=data.time_to,
+            location=data.location,
+            reminder_minutes=data.reminder_minutes,
             is_conductor_task=False,
         )
         await self.db.commit()
@@ -168,6 +178,25 @@ class TasksService:
             raise ForbiddenException("Only conductor or admin can delete tasks")
         await self.repo.delete(task)
         await self.db.commit()
+
+    async def get_task_stats(
+        self,
+        student_id: UUID,
+        requester_id: UUID,
+        requester_role: str,
+        month: str | None = None,
+    ) -> dict:
+        if requester_role == ROLE_STUDENT and requester_id != student_id:
+            raise ForbiddenException("Students can only view their own stats")
+
+        if month:
+            try:
+                year, mon = int(month[:4]), int(month[5:7])
+            except (ValueError, IndexError):
+                raise ValueError("month must be in YYYY-MM format")
+            return await self.repo.stats_for_month(student_id, year, mon)
+
+        return await self.repo.count_for_student(student_id)
 
     async def list_student_tasks(
         self,

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, time, timezone
 from typing import Literal
 from uuid import UUID
 
@@ -9,7 +9,12 @@ class TaskCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=300)
     description: str | None = Field(None, max_length=2000)
     priority: Literal["low", "medium", "high"] = "medium"
+    task_type: Literal["deadline", "assignment"] = "assignment"
     deadline: datetime | None = None
+    time_from: time | None = None
+    time_to: time | None = None
+    location: str | None = Field(None, max_length=300)
+    reminder_minutes: int | None = Field(None, ge=1, le=10080)
     student_roadmap_id: UUID | None = None
 
     @field_validator("deadline")
@@ -24,7 +29,12 @@ class TaskUpdate(BaseModel):
     title: str | None = Field(None, min_length=1, max_length=300)
     description: str | None = Field(None, max_length=2000)
     priority: Literal["low", "medium", "high"] | None = None
+    task_type: Literal["deadline", "assignment"] | None = None
     deadline: datetime | None = None
+    time_from: time | None = None
+    time_to: time | None = None
+    location: str | None = Field(None, max_length=300)
+    reminder_minutes: int | None = Field(None, ge=1, le=10080)
 
     @field_validator("deadline")
     @classmethod
@@ -46,7 +56,12 @@ class TaskOut(BaseModel):
     description: str | None
     status: str
     priority: str
+    task_type: str
     deadline: datetime | None
+    time_from: time | None
+    time_to: time | None
+    location: str | None
+    reminder_minutes: int | None
     completed_at: datetime | None
     is_conductor_task: bool
     student_roadmap_id: UUID | None
@@ -54,6 +69,19 @@ class TaskOut(BaseModel):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class TaskStatsOut(BaseModel):
+    total: int
+    completed: int
+    overdue: int
+    in_progress: int
+    todo: int
+
+
+class TaskStatsResponse(BaseModel):
+    success: bool = True
+    data: TaskStatsOut
 
 
 class PaginatedMeta(BaseModel):

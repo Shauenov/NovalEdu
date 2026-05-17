@@ -1,15 +1,22 @@
 from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, File, UploadFile
 from pydantic import BaseModel, EmailStr
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.constants import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
-from app.core.permissions import CurrentUser, get_current_user, require_any_authenticated
+from app.storage.upload import process_and_upload_image
+
+from app.core.constants import BUCKET_AVATARS, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
+from app.core.permissions import CurrentUser, get_current_user
 from app.core.response import SuccessResponse
 from app.database import get_db
-from app.modules.users.schemas import PaginatedStudents, StudentDetailResponse, UserOut, UserResponse, UserUpdate
+from app.modules.users.schemas import (
+    PaginatedStudents,
+    StudentDetailResponse,
+    UserResponse,
+    UserUpdate,
+)
 from app.modules.users.service import UsersService
 
 router = APIRouter()
@@ -34,6 +41,32 @@ async def update_me(
     service = UsersService(db)
     user = await service.update_me(UUID(current_user.user_id), body)
     return UserResponse(data=user)
+
+
+@router.post("/users/me/avatar", response_model=UserResponse)
+async def upload_avatar(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+) -> UserResponse:
+    avatar_url = await process_and_upload_image(
+        file=file, bucket=BUCKET_AVATARS, prefix=str(current_user.user_id)
+    )
+    service = UsersService(db)
+    user = await service.update_me(
+        UUID(current_user.user_id), UserUpdate(avatar_url=avatar_url)
+    )
+    return UserResponse(data=user)
+
+
+@router.delete("/users/me", response_model=SuccessResponse)
+async def delete_my_account(
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+) -> SuccessResponse:
+    service = UsersService(db)
+    await service.deactivate_me(UUID(current_user.user_id))
+    return SuccessResponse()
 
 
 @router.get("/students", response_model=PaginatedStudents)

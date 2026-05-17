@@ -59,8 +59,23 @@ class MessagesRepository:
         )
         return result.all()
 
-    async def create_message(self, conversation_id: UUID, sender_id: UUID, body: str) -> Message:
-        msg = Message(conversation_id=conversation_id, sender_id=sender_id, body=body)
+    async def create_message(
+        self,
+        conversation_id: UUID,
+        sender_id: UUID,
+        body: str,
+        image_object_key: str | None = None,
+        image_content_type: str | None = None,
+        image_size: int | None = None,
+    ) -> Message:
+        msg = Message(
+            conversation_id=conversation_id,
+            sender_id=sender_id,
+            body=body,
+            image_object_key=image_object_key,
+            image_content_type=image_content_type,
+            image_size=image_size,
+        )
         self.db.add(msg)
         await self.db.flush()
         await self.db.refresh(msg)

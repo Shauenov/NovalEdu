@@ -1,9 +1,12 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, File, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.storage.upload import process_and_upload_image
+
 from app.core.permissions import CurrentUser, get_current_user, require_conductor_or_admin
+from app.core.constants import BUCKET_ALUMNI
 from app.core.response import SuccessResponse
 from app.database import get_db
 from app.modules.alumni.schemas import AlumniCreate, AlumniListResponse, AlumniOut, AlumniResponse, AlumniUpdate
@@ -65,3 +68,20 @@ async def delete_alumni(
     service = AlumniService(db)
     await service.delete_story(story_id, current_user.role)
     return SuccessResponse()
+
+
+@router.post("/alumni/{story_id}/photo", response_model=AlumniResponse)
+async def upload_alumni_photo(
+    story_id: UUID,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(require_conductor_or_admin()),
+) -> AlumniResponse:
+    photo_url = await process_and_upload_image(
+        file=file,
+        bucket=BUCKET_ALUMNI,
+        prefix=f"{story_id}/photo"
+    )
+    service = AlumniService(db)
+    item = await service.update_story(story_id, AlumniUpdate(photo_url=photo_url), current_user.role)
+    return AlumniResponse(data=AlumniOut.model_validate(item))

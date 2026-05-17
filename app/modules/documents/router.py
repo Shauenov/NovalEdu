@@ -1,6 +1,8 @@
+from datetime import datetime
+from typing import Literal, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, Request
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.constants import DEFAULT_PAGE_SIZE
@@ -40,15 +42,24 @@ async def get_document(
 async def upload_document(
     student_id: UUID,
     file: UploadFile = File(...),
-    doc_type: str = "other",
+    doc_type: str = Form("other"),
+    category: Literal["personal", "education", "financial", "other"] = Form("other"),
+    expires_at: Optional[datetime] = Form(None),
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user),
 ):
     svc = DocumentsService(db)
-    # Access control: allow self or conductor/admin (enforced in service or elsewhere)
-    doc = await svc.upload_document(student_id, file, doc_type)
-    url = svc.get_signed_url(student_id, doc_type)
-    return DocumentUploadEnvelope(data=DocumentUploadResponse(id=doc.id, doc_type=doc.doc_type, url=url))
+    doc = await svc.upload_document(student_id, file, doc_type, category, expires_at)
+    url = await svc.get_signed_url(student_id, doc_type)
+    return DocumentUploadEnvelope(
+        data=DocumentUploadResponse(
+            id=doc.id,
+            doc_type=doc.doc_type,
+            category=doc.category,
+            status=doc.status,
+            url=url,
+        )
+    )
 
 
 @router.delete("/students/{student_id}/documents/{doc_type}", response_model=SuccessResponse)

@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
@@ -111,3 +112,19 @@ class TokenEnvelope(BaseModel):
 class AccessTokenEnvelope(BaseModel):
     success: bool = True
     data: AccessTokenResponse
+
+
+class SessionOut(BaseModel):
+    id: UUID
+    device_name: str | None
+    ip_address: str | None
+    created_at: datetime
+    last_used_at: datetime
+    expires_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class SessionsResponse(BaseModel):
+    success: bool = True
+    data: list[SessionOut]

@@ -1,9 +1,10 @@
+import json
 from datetime import date
 from decimal import Decimal
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class ProfileOut(BaseModel):
@@ -23,8 +24,31 @@ class ProfileOut(BaseModel):
     target_country: str | None = None
     target_major: str | None = None
     notes: str | None = None
+    # Personal info
+    phone: str | None = None
+    gender: Literal["male", "female", "other"] | None = None
+    birth_date: date | None = None
+    school_name: str | None = None
+    # Application settings
+    degree_level: Literal["bachelor", "master", "phd"] | None = None
+    target_countries: list[str] = []
+    budget_max: int | None = None
 
     model_config = {"from_attributes": True}
+
+    @field_validator("target_countries", mode="before")
+    @classmethod
+    def parse_target_countries(cls, v):
+        if v is None:
+            return []
+        if isinstance(v, list):
+            return v
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except (json.JSONDecodeError, ValueError):
+                return []
+        return []
 
 
 class ProfileUpdate(BaseModel):
@@ -42,6 +66,15 @@ class ProfileUpdate(BaseModel):
     target_country: str | None = Field(None, max_length=100)
     target_major: str | None = Field(None, max_length=200)
     notes: str | None = None
+    # Personal info
+    phone: str | None = Field(None, max_length=30)
+    gender: Literal["male", "female", "other"] | None = None
+    birth_date: date | None = None
+    school_name: str | None = Field(None, max_length=300)
+    # Application settings
+    degree_level: Literal["bachelor", "master", "phd"] | None = None
+    target_countries: list[str] | None = None
+    budget_max: int | None = Field(None, ge=0)
 
 
 class ProfileResponse(BaseModel):

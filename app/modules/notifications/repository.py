@@ -32,10 +32,12 @@ class NotificationsRepository:
         user_id: UUID,
         page: int = 1,
         page_size: int = DEFAULT_PAGE_SIZE,
+        notification_type: str | None = None,
     ) -> tuple[list[Notification], int]:
-        stmt = select(Notification).where(Notification.user_id == user_id).order_by(
-            Notification.created_at.desc()
-        )
+        stmt = select(Notification).where(Notification.user_id == user_id)
+        if notification_type:
+            stmt = stmt.where(Notification.type == notification_type)
+        stmt = stmt.order_by(Notification.created_at.desc())
         total = (await self.db.execute(select(func.count()).select_from(stmt.subquery()))).scalar_one()
         stmt = stmt.offset((page - 1) * page_size).limit(page_size)
         result = await self.db.execute(stmt)

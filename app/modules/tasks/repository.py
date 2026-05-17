@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import func, select, update
+from sqlalchemy import and_, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.constants import DEFAULT_PAGE_SIZE
@@ -71,4 +71,24 @@ class TasksRepository:
             "total": sum(counts.values()),
             "done": counts.get("done", 0),
             "overdue": counts.get("overdue", 0),
+        }
+
+    async def stats_for_month(self, student_id: UUID, year: int, month: int) -> dict:
+        from sqlalchemy import extract
+        stmt = select(Task.status, func.count()).where(
+            Task.student_id == student_id,
+            extract("year", Task.created_at) == year,
+            extract("month", Task.created_at) == month,
+        ).group_by(Task.status)
+        result = await self.db.execute(stmt)
+        counts = dict(result.all())
+        total = sum(counts.values())
+        completed = counts.get("done", 0)
+        overdue = counts.get("overdue", 0)
+        return {
+            "total": total,
+            "completed": completed,
+            "overdue": overdue,
+            "in_progress": counts.get("in_progress", 0),
+            "todo": counts.get("todo", 0),
         }
