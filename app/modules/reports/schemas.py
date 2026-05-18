@@ -13,6 +13,7 @@ class OverviewReport(BaseModel):
     tasks_completed_this_month: int
     appointments_this_month: int
     applied_abroad: int
+    total_budget_usd: int  # sum of students' budget_max (target scholarship budget)
 
 
 class StudentProgressItem(BaseModel):

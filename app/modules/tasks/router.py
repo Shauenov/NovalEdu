@@ -8,7 +8,7 @@ from app.core.constants import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.core.permissions import CurrentUser, get_current_user
 from app.core.response import SuccessResponse
 from app.database import get_db
-from app.modules.tasks.schemas import PaginatedMeta, PaginatedTasks, TaskCreate, TaskOut, TaskResponse, TaskStatsOut, TaskStatsResponse, TaskStatusUpdate, TaskUpdate
+from app.modules.tasks.schemas import PaginatedMeta, PaginatedTasks, TaskCreate, TaskHistoryResponse, TaskOut, TaskResponse, TaskStatsOut, TaskStatsResponse, TaskStatusUpdate, TaskUpdate
 from app.modules.tasks.service import TasksService
 
 router = APIRouter()
@@ -136,6 +136,20 @@ async def patch_task_status(
         requester_role=current_user.role,
     )
     return TaskResponse(data=task)
+
+
+@router.get("/tasks/{task_id}/history", response_model=TaskHistoryResponse)
+async def get_task_history(
+    task_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+) -> TaskHistoryResponse:
+    service = TasksService(db)
+    return await service.get_history(
+        task_id=task_id,
+        requester_id=UUID(current_user.user_id),
+        requester_role=current_user.role,
+    )
 
 
 @router.delete("/tasks/{task_id}", response_model=SuccessResponse)

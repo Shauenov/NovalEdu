@@ -5,7 +5,7 @@ from sqlalchemy import and_, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.constants import DEFAULT_PAGE_SIZE
-from app.modules.tasks.models import Task
+from app.modules.tasks.models import Task, TaskHistory
 
 
 class TasksRepository:
@@ -72,6 +72,37 @@ class TasksRepository:
             "done": counts.get("done", 0),
             "overdue": counts.get("overdue", 0),
         }
+
+    # ── History ───────────────────────────────────────────────
+
+    async def add_history(
+        self,
+        task_id: UUID,
+        changed_by: UUID | None,
+        event_type: str,
+        old_value: str | None = None,
+        new_value: str | None = None,
+    ) -> TaskHistory:
+        entry = TaskHistory(
+            task_id=task_id,
+            changed_by=changed_by,
+            event_type=event_type,
+            old_value=old_value,
+            new_value=new_value,
+        )
+        self.db.add(entry)
+        await self.db.flush()
+        return entry
+
+    async def list_history(self, task_id: UUID) -> list[TaskHistory]:
+        result = await self.db.execute(
+            select(TaskHistory)
+            .where(TaskHistory.task_id == task_id)
+            .order_by(TaskHistory.created_at.asc())
+        )
+        return list(result.scalars().all())
+
+    # ── Stats ─────────────────────────────────────────────────
 
     async def stats_for_month(self, student_id: UUID, year: int, month: int) -> dict:
         from sqlalchemy import extract

@@ -30,3 +30,38 @@ class EnrollmentResponse(BaseModel):
 class EnrollmentsResponse(BaseModel):
     success: bool = True
     data: list[EnrollmentOut]
+
+
+# ── University-centric view (Список заявок) ───────────────────────────────────
+
+class StudentBriefForEnrollment(BaseModel):
+    id: UUID
+    full_name: str
+    avatar_url: str | None = None
+
+    model_config = {"from_attributes": True}
+
+
+class EnrollmentWithStudentOut(BaseModel):
+    id: UUID
+    student_id: UUID
+    student: StudentBriefForEnrollment
+    university_id: UUID
+    status: str
+    progress: int
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class PaginatedMeta(BaseModel):
+    page: int
+    page_size: int
+    total: int
+
+
+class PaginatedUniversityEnrollments(BaseModel):
+    success: bool = True
+    data: list[EnrollmentWithStudentOut]
+    meta: PaginatedMeta

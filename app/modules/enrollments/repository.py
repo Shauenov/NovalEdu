@@ -1,9 +1,10 @@
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.enrollments.models import Enrollment
+from app.modules.users.models import User
 
 
 class EnrollmentsRepository:
@@ -28,6 +29,51 @@ class EnrollmentsRepository:
             .order_by(Enrollment.created_at.desc())
         )
         return result.scalars().all()
+
+    async def list_for_university(
+        self,
+        university_id: UUID,
+        status: str | None,
+        page: int,
+        page_size: int,
+    ) -> tuple[list[dict], int]:
+        """Return enrollments for a university, joined with user info."""
+        base_where = [Enrollment.university_id == university_id]
+        if status:
+            base_where.append(Enrollment.status == status)
+
+        # Count
+        count_stmt = select(func.count(Enrollment.id)).where(*base_where)
+        total: int = (await self.db.execute(count_stmt)).scalar_one()
+
+        # Data with join
+        stmt = (
+            select(Enrollment, User)
+            .join(User, User.id == Enrollment.student_id)
+            .where(*base_where)
+            .order_by(Enrollment.created_at.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+        )
+        rows = (await self.db.execute(stmt)).all()
+
+        result = []
+        for enrollment, user in rows:
+            result.append({
+                "id": enrollment.id,
+                "student_id": enrollment.student_id,
+                "student": {
+                    "id": user.id,
+                    "full_name": user.full_name,
+                    "avatar_url": user.avatar_url,
+                },
+                "university_id": enrollment.university_id,
+                "status": enrollment.status,
+                "progress": enrollment.progress,
+                "created_at": enrollment.created_at,
+                "updated_at": enrollment.updated_at,
+            })
+        return result, total
 
     async def create(self, **kwargs) -> Enrollment:
         enrollment = Enrollment(**kwargs)

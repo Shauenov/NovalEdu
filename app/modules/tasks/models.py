@@ -8,6 +8,25 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.database import Base
 
 
+class TaskHistory(Base):
+    """Audit log for task changes (create / update / status_change / delete)."""
+
+    __tablename__ = "task_history"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    task_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tasks.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    changed_by: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    # event_type: created | status_changed | updated | deleted
+    event_type: Mapped[str] = mapped_column(String(30), nullable=False)
+    old_value: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    new_value: Mapped[str | None] = mapped_column(String(300), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class Task(Base):
     __tablename__ = "tasks"
 

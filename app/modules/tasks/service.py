@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.constants import ALMATY_TZ, DEFAULT_PAGE_SIZE, ROLE_ADMIN, ROLE_CONDUCTOR, ROLE_STUDENT
 from app.core.exceptions import ForbiddenException, NotFoundException
 from app.modules.tasks.repository import TasksRepository
-from app.modules.tasks.schemas import TaskCreate, TaskOut, TaskStatusUpdate, TaskUpdate
+from app.modules.tasks.schemas import TaskCreate, TaskHistoryOut, TaskHistoryResponse, TaskOut, TaskStatusUpdate, TaskUpdate
 
 
 class TasksService:
@@ -39,6 +39,7 @@ class TasksService:
             student_roadmap_id=data.student_roadmap_id,
             is_conductor_task=True,
         )
+        await self.repo.add_history(task.id, created_by, "created", new_value=data.title)
         await self.db.commit()
 
         # Fire notification to student (lazy import to avoid circular dep)
@@ -129,7 +130,10 @@ class TasksService:
         if requester_role not in (ROLE_CONDUCTOR, ROLE_ADMIN):
             raise ForbiddenException("Only conductor or admin can update tasks")
 
-        updated = await self.repo.update(task, data.model_dump(exclude_unset=True))
+        changed_fields = data.model_dump(exclude_unset=True)
+        updated = await self.repo.update(task, changed_fields)
+        summary = ", ".join(f"{k}={v}" for k, v in changed_fields.items() if k not in ("time_from", "time_to"))
+        await self.repo.add_history(task_id, requester_id, "updated", new_value=summary[:300] if summary else None)
         await self.db.commit()
         return TaskOut.model_validate(updated)
 
@@ -142,11 +146,16 @@ class TasksService:
         if requester_role == ROLE_STUDENT and task.student_id != requester_id:
             raise ForbiddenException("Students can only update their own tasks")
 
+        old_status = task.status
         update_data = {"status": data.status}
         if data.status == "done":
             update_data["completed_at"] = datetime.now(tz=timezone.utc)
 
         updated = await self.repo.update(task, update_data)
+        await self.repo.add_history(
+            task_id, requester_id, "status_changed",
+            old_value=old_status, new_value=data.status,
+        )
         await self.db.commit()
 
         # Notify conductor when student marks task done
@@ -197,6 +206,15 @@ class TasksService:
             return await self.repo.stats_for_month(student_id, year, mon)
 
         return await self.repo.count_for_student(student_id)
+
+    async def get_history(self, task_id: UUID, requester_id: UUID, requester_role: str) -> TaskHistoryResponse:
+        task = await self.repo.get_by_id(task_id)
+        if not task:
+            raise NotFoundException("Task not found")
+        if requester_role == ROLE_STUDENT and task.student_id != requester_id:
+            raise ForbiddenException("Access denied")
+        entries = await self.repo.list_history(task_id)
+        return TaskHistoryResponse(data=[TaskHistoryOut.model_validate(e) for e in entries])
 
     async def list_student_tasks(
         self,

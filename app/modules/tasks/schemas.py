@@ -99,3 +99,20 @@ class PaginatedTasks(BaseModel):
 class TaskResponse(BaseModel):
     success: bool = True
     data: TaskOut
+
+
+class TaskHistoryOut(BaseModel):
+    id: UUID
+    task_id: UUID
+    changed_by: UUID | None
+    event_type: str       # created | status_changed | updated | deleted
+    old_value: str | None
+    new_value: str | None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class TaskHistoryResponse(BaseModel):
+    success: bool = True
+    data: list[TaskHistoryOut]

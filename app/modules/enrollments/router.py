@@ -1,15 +1,48 @@
+from typing import Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.constants import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.core.permissions import CurrentUser, get_current_user, require_conductor_or_admin
 from app.core.response import SuccessResponse
 from app.database import get_db
-from app.modules.enrollments.schemas import EnrollmentResponse, EnrollmentsResponse, EnrollmentUpdateRequest
+from app.modules.enrollments.schemas import (
+    EnrollmentResponse,
+    EnrollmentsResponse,
+    EnrollmentUpdateRequest,
+    PaginatedUniversityEnrollments,
+)
 from app.modules.enrollments.service import EnrollmentsService
 
 router = APIRouter()
+
+
+@router.get(
+    "/universities/{university_id}/enrollments",
+    response_model=PaginatedUniversityEnrollments,
+)
+async def list_university_enrollments(
+    university_id: UUID,
+    status: Optional[str] = Query(
+        None,
+        pattern="^(selected|applying|submitted|accepted|rejected)$",
+        description="Filter by enrollment status",
+    ),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(require_conductor_or_admin()),
+) -> PaginatedUniversityEnrollments:
+    svc = EnrollmentsService(db)
+    return await svc.list_university_enrollments(
+        university_id=university_id,
+        requester_role=current_user.role,
+        status=status,
+        page=page,
+        page_size=page_size,
+    )
 
 
 @router.post(
