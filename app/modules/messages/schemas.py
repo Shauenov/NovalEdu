@@ -1,4 +1,4 @@
-from datetime import datetime
+﻿from datetime import datetime
 from typing import List
 from uuid import UUID
 
@@ -12,6 +12,9 @@ class MessageOut(BaseModel):
     sender_name: str | None = None
     sender_role: str | None = None
     body: str
+    image_url: str | None = None
+    image_content_type: str | None = None
+    image_size: int | None = None
     is_read: bool
     read_at: datetime | None = None
     created_at: datetime
@@ -22,9 +25,10 @@ class MessageOut(BaseModel):
 class ConversationOut(BaseModel):
     id: UUID
     student_id: UUID
-    conductor_id: UUID
+    adviser_id: UUID
     last_message_at: datetime | None = None
     created_at: datetime
+    unread_count: int = 0
 
     model_config = {"from_attributes": True}
 
@@ -61,6 +65,7 @@ class ConversationsResponse(BaseModel):
 
 class BroadcastResult(BaseModel):
     sent: int
+    message_ids: list[UUID] | None = None
 
 
 class BroadcastResponse(BaseModel):

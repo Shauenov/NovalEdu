@@ -1,0 +1,17 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>Task Updated</title>
+  </head>
+  <body>
+    <p>Hi {{ full_name }},</p>
+    <p>Your task <strong>{{ task_title }}</strong> has been updated by your adviser.</p>
+    {% if deadline %}
+    <p>Deadline: {{ deadline }}</p>
+    {% endif %}
+    {% if description %}
+    <p>{{ description }}</p>
+    {% endif %}
+  </body>
+</html>

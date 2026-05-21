@@ -1,4 +1,4 @@
-import pytest
+﻿import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.users.models import User
@@ -51,36 +51,36 @@ async def test_create_and_list_tasks(async_client: AsyncClient, db_session: Asyn
     assert response.json()["data"]["status"] == "done"
 
 @pytest.mark.asyncio
-async def test_create_conductor_task(async_client: AsyncClient, db_session: AsyncSession):
-    # Setup conductor and student
-    conductor_id = uuid.uuid4()
-    conductor = User(
-        id=conductor_id,
-        email="conductor_task@test.com",
-        full_name="Conductor",
+async def test_create_ADVISER_task(async_client: AsyncClient, db_session: AsyncSession):
+    # Setup ADVISER and student
+    ADVISER_id = uuid.uuid4()
+    ADVISER = User(
+        id=ADVISER_id,
+        email="ADVISER_task@test.com",
+        full_name="ADVISER",
         password_hash=hash_password("pass"),
-        role="conductor",
+        role="adviser",
         is_active=True
     )
     student_id = uuid.uuid4()
     student = User(
         id=student_id,
-        email="student_conductor_task@test.com",
+        email="student_ADVISER_task@test.com",
         full_name="Student",
         password_hash=hash_password("pass"),
         role="student",
         is_active=True
     )
-    db_session.add_all([conductor, student])
+    db_session.add_all([ADVISER, student])
     await db_session.commit()
 
-    token = create_access_token(user_id=conductor_id, role="conductor", email="conductor_task@test.com")
-    
-    # Create conductor task for student
+    token = create_access_token(user_id=ADVISER_id, role="adviser", email="ADVISER_task@test.com")
+
+    # Create ADVISER task for student
     response = await async_client.post(
         f"/api/v1/students/{student_id}/tasks",
         headers={"Authorization": f"Bearer {token}"},
-        json={"title": "Upload Document", "deadline": "2026-11-30T00:00:00Z", "is_conductor_task": True}
+        json={"title": "Upload Document", "deadline": "2026-11-30T00:00:00Z", "is_adviser_task": True}
     )
     assert response.status_code == 201
-    assert response.json()["data"]["is_conductor_task"] is True
+    assert response.json()["data"]["is_adviser_task"] is True

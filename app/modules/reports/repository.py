@@ -92,6 +92,19 @@ class ReportsRepository:
             )
         ).scalar_one()
 
+        total_budget_raw = (
+            await self.db.execute(
+                select(func.coalesce(func.sum(StudentProfile.budget_max), 0))
+                .join(User, User.id == StudentProfile.user_id)
+                .where(
+                    User.role == ROLE_STUDENT,
+                    User.is_active == True,
+                    StudentProfile.budget_max.isnot(None),
+                )
+            )
+        ).scalar_one()
+        total_budget_usd = int(total_budget_raw) if total_budget_raw else 0
+
         return {
             "total_students": total_students,
             "by_group": by_group,
@@ -101,6 +114,7 @@ class ReportsRepository:
             "tasks_completed_this_month": tasks_completed_this_month,
             "appointments_this_month": appointments_this_month,
             "applied_abroad": applied_abroad,
+            "total_budget_usd": total_budget_usd,
         }
 
     async def students_progress(self) -> list[dict]:

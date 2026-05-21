@@ -28,6 +28,24 @@ class University(Base):
     language_of_instr: Mapped[str | None] = mapped_column(String(100), nullable=True)
     is_published: Mapped[bool] = mapped_column(Boolean, default=True)
     last_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    # ── Dormitory / Housing ──────────────────────────────────────
+    dorm_available: Mapped[bool] = mapped_column(Boolean, default=False)
+    dorm_cost_per_month: Mapped[int | None] = mapped_column(Integer, nullable=True)   # local currency
+    dorm_cost_currency: Mapped[str | None] = mapped_column(String(10), nullable=True)  # "KZT", "USD" …
+    dorm_guaranteed_for: Mapped[str | None] = mapped_column(String(100), nullable=True) # "1 курс"
+    dorm_room_types: Mapped[str | None] = mapped_column(String(200), nullable=True)    # "2,3-местные"
+    dorm_image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+
+    # ── Campus amenities ─────────────────────────────────────────
+    dining_spots_total: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    cafes_count: Mapped[str | None] = mapped_column(String(20), nullable=True)   # "5-7"
+    shops_count: Mapped[str | None] = mapped_column(String(20), nullable=True)   # "2-4"
+    parking_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    has_medical_center: Mapped[bool] = mapped_column(Boolean, default=False)
+    has_library: Mapped[bool] = mapped_column(Boolean, default=False)
+    campus_extra: Mapped[str | None] = mapped_column(Text, nullable=True)  # free-form extra info
+
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 

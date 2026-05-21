@@ -1,6 +1,8 @@
 from fastapi import APIRouter
 
 from app.modules.auth.router import router as auth_router
+from app.modules.enrollments.router import router as enrollments_router
+from app.modules.users.notification_settings import router as notification_settings_router
 from app.modules.users.router import router as users_router
 from app.modules.profile.router import router as profile_router
 from app.modules.documents.router import router as documents_router
@@ -44,6 +46,8 @@ api_router.include_router(roadmaps_router, tags=["Roadmaps"])
 api_router.include_router(faq_router, tags=["FAQ"])
 api_router.include_router(alumni_router, tags=["Alumni"])
 api_router.include_router(reports_router, tags=["Reports"])
+api_router.include_router(enrollments_router, tags=["Enrollments"])
+api_router.include_router(notification_settings_router, tags=["Notification Settings"])
 # api_router.include_router(universities_router, prefix="/universities", tags=["Universities"])
 # api_router.include_router(news_router, prefix="/news", tags=["News"])
 # api_router.include_router(tasks_router, tags=["Tasks"])

@@ -29,6 +29,7 @@ class RoadmapCreate(BaseModel):
     description: str | None = None
     target_type: str | None = Field(None, max_length=50)
     is_public: bool = True
+    university_id: UUID | None = None
     template_tasks: list[RoadmapTemplateTaskCreate] = []
 
 
@@ -37,6 +38,7 @@ class RoadmapUpdate(BaseModel):
     description: str | None = None
     target_type: str | None = Field(None, max_length=50)
     is_public: bool | None = None
+    university_id: UUID | None = None
 
 
 class RoadmapOut(BaseModel):
@@ -45,6 +47,7 @@ class RoadmapOut(BaseModel):
     description: str | None
     target_type: str | None
     is_public: bool
+    university_id: UUID | None
     created_by: UUID
     created_at: datetime
     updated_at: datetime

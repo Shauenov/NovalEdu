@@ -40,8 +40,8 @@ class RoadmapsRepository:
 
     async def update_roadmap(self, roadmap: Roadmap, data: dict) -> Roadmap:
         for key, value in data.items():
-            if value is not None:
-                setattr(roadmap, key, value)
+            # Allow explicit None for nullable fields (e.g. university_id clearance)
+            setattr(roadmap, key, value)
         await self.db.flush()
         await self.db.refresh(roadmap)
         return roadmap

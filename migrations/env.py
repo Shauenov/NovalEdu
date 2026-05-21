@@ -32,6 +32,8 @@ _MODULES = [
     "app.modules.notifications.models",
     "app.modules.faq.models",
     "app.modules.alumni.models",
+    "app.modules.enrollments.models",
+    "app.modules.users.notification_settings",
 ]
 
 for _m in _MODULES:

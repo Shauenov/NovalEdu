@@ -1,11 +1,11 @@
-from datetime import datetime
+﻿from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.core.permissions import CurrentUser, get_current_user, require_conductor_or_admin, require_student
+from app.core.permissions import CurrentUser, get_current_user, require_ADVISER_or_admin, require_student
 from app.core.response import SuccessResponse
 from app.modules.appointments.service import AppointmentsService
 from app.modules.appointments.schemas import (
@@ -25,12 +25,12 @@ router = APIRouter()
 
 @router.get("/slots", response_model=SlotsResponse)
 async def list_slots(
-    conductor_id: UUID | None = None,
+    adviser_id: UUID | None = None,
     from_time: datetime | None = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
     svc = AppointmentsService(db)
-    slots = await svc.list_available_slots(conductor_id=conductor_id, from_time=from_time)
+    slots = await svc.list_available_slots(adviser_id=adviser_id, from_time=from_time)
     return SlotsResponse(data=[SlotOut.model_validate(s) for s in slots])
 
 
@@ -38,7 +38,7 @@ async def list_slots(
 async def create_slot(
     body: SlotCreate | SlotsBatchCreate = Body(...),
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = Depends(require_conductor_or_admin()),
+    current_user: CurrentUser = Depends(require_ADVISER_or_admin()),
 ):
     svc = AppointmentsService(db)
     if isinstance(body, SlotsBatchCreate):
@@ -58,13 +58,13 @@ async def create_slot(
 
 
 @router.delete("/slots/{slot_id}", response_model=SuccessResponse)
-async def delete_slot(slot_id: UUID, db: AsyncSession = Depends(get_db), current_user: CurrentUser = Depends(require_conductor_or_admin())):
+async def delete_slot(slot_id: UUID, db: AsyncSession = Depends(get_db), current_user: CurrentUser = Depends(require_ADVISER_or_admin())):
     # For simplicity: soft-delete not implemented — leave for future
     svc = AppointmentsService(db)
     slot = await svc.repo.get_slot(slot_id)
     if not slot:
         raise HTTPException(status_code=404, detail="Slot not found")
-    if slot.conductor_id != UUID(current_user.user_id):
+    if slot.adviser_id != UUID(current_user.user_id):
         raise HTTPException(status_code=403, detail="Not allowed")
     # Only allow delete if available
     if not slot.is_available:
@@ -81,7 +81,7 @@ async def book_appointment(
     current_user: CurrentUser = Depends(get_current_user),
 ):
     svc = AppointmentsService(db)
-    appt = await svc.book(body.slot_id, UUID(current_user.user_id), body.notes)
+    appt = await svc.book(body.slot_id, UUID(current_user.user_id), body.notes, body.consultation_type)
     return AppointmentResponse(data=AppointmentOut.model_validate(appt))
 
 
@@ -93,7 +93,7 @@ async def list_appointments(
     svc = AppointmentsService(db)
     if current_user.role == "student":
         raise HTTPException(status_code=403, detail="Students should use /appointments/my")
-    appts = await svc.list_for_conductor(UUID(current_user.user_id))
+    appts = await svc.list_for_adviser(UUID(current_user.user_id))
     return AppointmentsResponse(data=[AppointmentOut.model_validate(a) for a in appts])
 
 
@@ -125,7 +125,7 @@ async def cancel_appointment(
 
 
 @router.patch("/{appointment_id}/complete", response_model=SuccessResponse)
-async def complete_appointment(appointment_id: UUID, db: AsyncSession = Depends(get_db), current_user: CurrentUser = Depends(require_conductor_or_admin())):
+async def complete_appointment(appointment_id: UUID, db: AsyncSession = Depends(get_db), current_user: CurrentUser = Depends(require_ADVISER_or_admin())):
     svc = AppointmentsService(db)
     await svc.complete(appointment_id)
     return SuccessResponse()

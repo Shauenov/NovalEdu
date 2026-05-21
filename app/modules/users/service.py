@@ -1,8 +1,9 @@
-from uuid import UUID
+﻿from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.constants import DEFAULT_PAGE_SIZE, ROLE_ADMIN, ROLE_CONDUCTOR
+from app.config import settings
+from app.core.constants import DEFAULT_PAGE_SIZE, ROLE_ADMIN, ROLE_ADVISER
 from app.core.exceptions import ForbiddenException, NotFoundException
 from app.core.security import hash_password
 from app.modules.profile.repository import ProfileRepository
@@ -39,8 +40,8 @@ class UsersService:
     async def get_student(
         self, student_id: UUID, requester_id: UUID, requester_role: str
     ) -> dict:
-        # Self-access OR conductor/admin
-        if requester_role not in (ROLE_CONDUCTOR, ROLE_ADMIN) and requester_id != student_id:
+        # Self-access OR ADVISER/admin
+        if requester_role not in (ROLE_ADVISER, ROLE_ADMIN) and requester_id != student_id:
             raise ForbiddenException("Access denied")
 
         user = await self.repo.get_by_id(student_id)
@@ -51,7 +52,7 @@ class UsersService:
 
         return {
             "user": UserOut.model_validate(user).model_dump(),
-            "profile": profile.__dict__ if profile else None,
+            "profile": {k: v for k, v in profile.__dict__.items() if not k.startswith('_')} if profile else None,
         }
 
     async def list_students(
@@ -62,23 +63,44 @@ class UsersService:
         ielts_passed: bool | None = None,
         sat_passed: bool | None = None,
         search: str | None = None,
+        sort_by: str | None = None,
         page: int = 1,
         page_size: int = DEFAULT_PAGE_SIZE,
     ) -> PaginatedStudents:
-        if requester_role not in (ROLE_CONDUCTOR, ROLE_ADMIN):
-            raise ForbiddenException("Only conductor or admin can list students")
+        if requester_role not in (ROLE_ADVISER, ROLE_ADMIN):
+            raise ForbiddenException("Only ADVISER or admin can list students")
 
-        users, total = await self.repo.list_students(
+        rows, total = await self.repo.list_students(
             group_type=group_type,
             course_year=course_year,
             ielts_passed=ielts_passed,
             sat_passed=sat_passed,
             search=search,
+            sort_by=sort_by,
             page=page,
             page_size=page_size,
         )
 
-        items = [StudentListItem.model_validate(u) for u in users]
+        items = []
+        for user, profile, tasks_total, tasks_done, tasks_overdue, tasks_in_progress in rows:
+            item = StudentListItem(
+                id=user.id,
+                full_name=user.full_name,
+                email=user.email,
+                avatar_url=user.avatar_url,
+                group_type=profile.group_type if profile else None,
+                course_year=profile.course_year if profile else None,
+                gpa=profile.gpa if profile else None,
+                ielts_passed=profile.ielts_passed if profile else None,
+                ielts_score=profile.ielts_score if profile else None,
+                sat_passed=profile.sat_passed if profile else None,
+                tasks_total=tasks_total or 0,
+                tasks_done=tasks_done or 0,
+                tasks_overdue=tasks_overdue or 0,
+                tasks_in_progress=tasks_in_progress or 0,
+            )
+            items.append(item)
+
         return PaginatedStudents(
             data=items,
             meta=PaginatedMeta(page=page, page_size=page_size, total=total),
@@ -93,6 +115,18 @@ class UsersService:
         await self.repo.delete(user)
         await self.db.commit()
 
+    async def deactivate_me(self, user_id: UUID) -> None:
+        """Soft-delete: deactivate account + revoke all tokens."""
+        user = await self.repo.get_by_id(user_id)
+        if not user:
+            raise NotFoundException("User not found")
+        user.is_active = False
+        # Revoke all refresh tokens
+        from sqlalchemy import delete as sa_delete
+        from app.modules.auth.models import RefreshToken
+        await self.db.execute(sa_delete(RefreshToken).where(RefreshToken.user_id == user_id))
+        await self.db.commit()
+
     async def invite_student(
         self,
         email: str,
@@ -100,8 +134,8 @@ class UsersService:
         password: str,
         requester_role: str,
     ) -> UserOut:
-        if requester_role not in (ROLE_CONDUCTOR, ROLE_ADMIN):
-            raise ForbiddenException("Only conductor or admin can invite students")
+        if requester_role not in (ROLE_ADVISER, ROLE_ADMIN):
+            raise ForbiddenException("Only ADVISER or admin can invite students")
         existing = await self.repo.get_by_email(email)
         if existing:
             from app.core.exceptions import ConflictException, ErrorCode
@@ -112,4 +146,21 @@ class UsersService:
             password_hash=hash_password(password),
         )
         await self.db.commit()
+
+        # Send welcome / invite email with temporary password
+        try:
+            from app.workers.email_tasks import send_email_task
+            send_email_task.delay(
+                to=email,
+                subject="Добро пожаловать в Nobal Education",
+                template="welcome.html",
+                context={
+                    "full_name": full_name,
+                    "temporary_password": password,
+                    "login_url": f"{settings.frontend_url}/login",
+                },
+            )
+        except Exception:
+            pass
+
         return UserOut.model_validate(user)

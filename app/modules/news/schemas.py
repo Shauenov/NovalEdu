@@ -2,7 +2,10 @@ from datetime import date, datetime
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
+
+from app.core.constants import BUCKET_NEWS
+from app.storage.minio_client import resolve_public_url
 
 
 NewsCategory = Literal[
@@ -13,6 +16,7 @@ NewsCategory = Literal[
     "webinar",
     "internship",
     "university_news",
+    "announcement",
     "general",
 ]
 
@@ -25,6 +29,7 @@ class NewsBase(BaseModel):
     event_date: date | None = None
     external_url: str | None = Field(None, max_length=500)
     is_published: bool = True
+    allow_calendar: bool = False
 
 
 class NewsCreate(NewsBase):
@@ -39,6 +44,7 @@ class NewsUpdate(BaseModel):
     event_date: date | None = None
     external_url: str | None = Field(None, max_length=500)
     is_published: bool | None = None
+    allow_calendar: bool | None = None
 
 
 class NewsOut(NewsBase):
@@ -49,6 +55,11 @@ class NewsOut(NewsBase):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+    @model_validator(mode="after")
+    def normalize_cover_url(self):
+        self.cover_url = resolve_public_url(BUCKET_NEWS, self.cover_url)
+        return self
 
 
 class AddToCalendarRequest(BaseModel):

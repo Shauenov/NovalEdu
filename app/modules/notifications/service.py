@@ -43,8 +43,9 @@ class NotificationsService:
         user_id: UUID,
         page: int = 1,
         page_size: int = DEFAULT_PAGE_SIZE,
+        notification_type: str | None = None,
     ) -> tuple[list[NotificationOut], int]:
-        notifs, total = await self.repo.list_for_user(user_id, page, page_size)
+        notifs, total = await self.repo.list_for_user(user_id, page, page_size, notification_type)
         return [NotificationOut.model_validate(n) for n in notifs], total
 
     async def mark_read(self, notif_id: UUID, user_id: UUID) -> None:

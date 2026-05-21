@@ -1,3 +1,4 @@
+import json
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -35,6 +36,9 @@ class ProfileService:
             raise NotFoundException(f"Profile for user {target_user_id} not found")
 
         update_data = data.model_dump(exclude_unset=True)
+        # Serialize target_countries list → JSON string for DB storage
+        if "target_countries" in update_data and isinstance(update_data["target_countries"], list):
+            update_data["target_countries"] = json.dumps(update_data["target_countries"])
         updated = await self.repo.update(profile, update_data)
         await self.db.commit()
         return ProfileOut.model_validate(updated)

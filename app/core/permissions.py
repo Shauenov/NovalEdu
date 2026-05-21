@@ -1,9 +1,9 @@
-from fastapi import Depends
+﻿from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
 from app.core.exceptions import ForbiddenException, UnauthorizedException
 from app.core.security import decode_access_token
-from app.core.constants import ROLE_ADMIN, ROLE_CONDUCTOR, ROLE_STUDENT
+from app.core.constants import ROLE_ADMIN, ROLE_ADVISER, ROLE_STUDENT
 from app.database import AsyncSession, get_db
 
 bearer_scheme = HTTPBearer(scheme_name="BearerAuth")
@@ -52,17 +52,17 @@ def require_student():
     return require_roles(ROLE_STUDENT)
 
 
-def require_conductor():
-    return require_roles(ROLE_CONDUCTOR)
+def require_ADVISER():
+    return require_roles(ROLE_ADVISER)
 
 
 def require_admin():
     return require_roles(ROLE_ADMIN)
 
 
-def require_conductor_or_admin():
-    return require_roles(ROLE_CONDUCTOR, ROLE_ADMIN)
+def require_ADVISER_or_admin():
+    return require_roles(ROLE_ADVISER, ROLE_ADMIN)
 
 
 def require_any_authenticated():
-    return require_roles(ROLE_STUDENT, ROLE_CONDUCTOR, ROLE_ADMIN)
+    return require_roles(ROLE_STUDENT, ROLE_ADVISER, ROLE_ADMIN)

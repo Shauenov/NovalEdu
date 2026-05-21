@@ -1,5 +1,5 @@
-from datetime import datetime
-from typing import List
+﻿from datetime import datetime
+from typing import List, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, model_validator
@@ -23,7 +23,7 @@ class SlotsBatchCreate(BaseModel):
 
 class SlotOut(BaseModel):
     id: UUID
-    conductor_id: UUID
+    adviser_id: UUID
     start_time: datetime
     end_time: datetime
     duration_min: int
@@ -34,6 +34,7 @@ class SlotOut(BaseModel):
 
 class BookRequest(BaseModel):
     slot_id: UUID
+    consultation_type: Literal["video", "audio", "chat"] = "video"
     notes: str | None = None
 
 
@@ -45,13 +46,20 @@ class AppointmentOut(BaseModel):
     id: UUID
     slot_id: UUID | None
     student_id: UUID
-    conductor_id: UUID
+    adviser_id: UUID
     status: str
+    consultation_type: str
     notes: str | None
     cancelled_at: datetime | None
     cancel_reason: str | None
     created_at: datetime
     updated_at: datetime
+    # Joined from users table — always present when fetched via list endpoints
+    student_name: str | None = None
+    student_avatar_url: str | None = None
+    # Joined from availability_slots table
+    slot_start_time: datetime | None = None
+    slot_end_time: datetime | None = None
 
     model_config = {"from_attributes": True}
 

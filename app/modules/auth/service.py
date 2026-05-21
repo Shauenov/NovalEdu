@@ -57,7 +57,12 @@ class AuthService:
         self.repo = AuthRepository(db)
         self.profile_repo = ProfileRepository(db)
 
-    async def register(self, data: RegisterRequest) -> TokenResponse:
+    async def register(
+        self,
+        data: RegisterRequest,
+        device_name: str | None = None,
+        ip_address: str | None = None,
+    ) -> TokenResponse:
         existing = await self.repo.get_user_by_email(data.email)
         if existing:
             raise ConflictException(
@@ -88,9 +93,14 @@ class AuthService:
         await self.db.commit()
         await self.db.refresh(user)
 
-        return await self._issue_tokens(user)
+        return await self._issue_tokens(user, device_name=device_name, ip_address=ip_address)
 
-    async def login(self, data: LoginRequest) -> TokenResponse:
+    async def login(
+        self,
+        data: LoginRequest,
+        device_name: str | None = None,
+        ip_address: str | None = None,
+    ) -> TokenResponse:
         user = await self.repo.get_user_by_email(data.email)
         if not user or not verify_password(data.password, user.password_hash):
             raise AppException(
@@ -99,7 +109,7 @@ class AuthService:
         if not user.is_active:
             raise AppException(403, ErrorCode.FORBIDDEN, "Account is deactivated")
 
-        return await self._issue_tokens(user)
+        return await self._issue_tokens(user, device_name=device_name, ip_address=ip_address)
 
     async def refresh_tokens(self, data: RefreshRequest) -> AccessTokenResponse:
         token_hash = _hash_token(data.refresh_token)
@@ -182,16 +192,40 @@ class AuthService:
         await self.repo.update_user_password(user.id, hash_password(data.new_password))
         await self.db.commit()
 
+    async def list_sessions(self, user_id: UUID):
+        return await self.repo.list_sessions(user_id)
+
+    async def delete_session(self, session_id: UUID, user_id: UUID) -> None:
+        session = await self.repo.get_session_by_id(session_id, user_id)
+        from app.core.exceptions import NotFoundException
+        if not session:
+            raise NotFoundException("Session not found")
+        await self.repo.delete_session_by_id(session_id, user_id)
+        await self.db.commit()
+
+    async def delete_all_sessions(self, user_id: UUID) -> None:
+        await self.repo.delete_all_user_tokens(user_id)
+        await self.db.commit()
+
     # ─── Internal ────────────────────────────────────────────────────────────
 
-    async def _issue_tokens(self, user) -> TokenResponse:
+    async def _issue_tokens(
+        self,
+        user,
+        device_name: str | None = None,
+        ip_address: str | None = None,
+    ) -> TokenResponse:
         access_token = create_access_token(user.id, user.role, user.email)
         refresh_token = create_refresh_token(user.id)
         token_hash = _hash_token(refresh_token)
         expires_at = datetime.now(tz=timezone.utc) + timedelta(
             days=settings.jwt_refresh_token_expire_days
         )
-        await self.repo.save_refresh_token(user.id, token_hash, expires_at)
+        await self.repo.save_refresh_token(
+            user.id, token_hash, expires_at,
+            device_name=device_name,
+            ip_address=ip_address,
+        )
         await self.db.commit()
 
         return TokenResponse(

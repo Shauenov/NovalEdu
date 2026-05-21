@@ -1,7 +1,10 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, model_validator
+
+from app.core.constants import BUCKET_AVATARS
+from app.storage.minio_client import resolve_public_url
 
 
 class UserOut(BaseModel):
@@ -14,6 +17,11 @@ class UserOut(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+    @model_validator(mode="after")
+    def normalize_avatar_url(self):
+        self.avatar_url = resolve_public_url(BUCKET_AVATARS, self.avatar_url)
+        return self
 
 
 class UserUpdate(BaseModel):
@@ -34,9 +42,16 @@ class StudentListItem(BaseModel):
     avatar_url: str | None = None
     tasks_total: int = 0
     tasks_done: int = 0
+    tasks_overdue: int = 0
+    tasks_in_progress: int = 0
     unread_messages: int = 0
 
     model_config = {"from_attributes": True}
+
+    @model_validator(mode="after")
+    def normalize_avatar_url(self):
+        self.avatar_url = resolve_public_url(BUCKET_AVATARS, self.avatar_url)
+        return self
 
 
 class StudentDetail(BaseModel):

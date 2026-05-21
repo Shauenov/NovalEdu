@@ -1,4 +1,4 @@
-# Nobal Education Backend — Development Plan
+﻿# Nobal Education Backend — Development Plan
 
 ## Architecture Override: Modular Structure
 
@@ -20,7 +20,7 @@ nobal-backend/
 │   ├── core/
 │   │   ├── security.py           # JWT create/verify, bcrypt hash/verify
 │   │   ├── exceptions.py         # AppException + ErrorCode enum
-│   │   ├── permissions.py        # RBAC: require_student(), require_conductor_or_admin()
+│   │   ├── permissions.py        # RBAC: require_student(), require_ADVISER_or_admin()
 │   │   └── constants.py          # ALMATY_TZ, pagination defaults, etc.
 │   │
 │   ├── modules/
@@ -77,7 +77,7 @@ nobal-backend/
 │   │   │   ├── models.py         # Task ORM
 │   │   │   ├── schemas.py        # TaskOut, TaskCreate, TaskStatusUpdate
 │   │   │   ├── repository.py     # list (filtered), get, CRUD, mark_overdue_bulk
-│   │   │   ├── service.py        # create (conductor/personal), update, patch_status
+│   │   │   ├── service.py        # create (ADVISER/personal), update, patch_status
 │   │   │   └── router.py         # GET/POST/PUT/PATCH/DELETE /tasks/* + /students/{id}/tasks
 │   │   │
 │   │   ├── roadmaps/
@@ -232,7 +232,7 @@ nobal-backend/
 **Tables:** `tasks`
 - `modules/tasks/` — all 6 files
 - Endpoints: `GET/POST /students/{id}/tasks`, `POST /tasks/personal`, `PUT/PATCH/DELETE /tasks/*`
-- `PATCH /tasks/{id}/status` → triggers notification to conductor
+- `PATCH /tasks/{id}/status` → triggers notification to ADVISER
 
 ### Chunk 4 — Documents (Day 3, ~3h)
 **Tables:** `student_documents`

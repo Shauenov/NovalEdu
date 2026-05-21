@@ -1,5 +1,6 @@
 import io
 from typing import BinaryIO
+from urllib.parse import urlparse
 
 from minio import Minio
 from minio.error import S3Error
@@ -8,6 +9,7 @@ from app.config import settings
 from app.core.constants import MINIO_BUCKETS, SIGNED_URL_EXPIRE_SECONDS
 
 _client: Minio | None = None
+_public_client: Minio | None = None
 
 
 def get_minio_client() -> Minio:
@@ -22,23 +24,51 @@ def get_minio_client() -> Minio:
     return _client
 
 
+def get_public_minio_client() -> Minio:
+    """Client configured with the public endpoint — used for presigning URLs
+    so the generated URL already contains the host the browser can reach.
+
+    We pre-populate the region cache for every known bucket so that presigning
+    is pure local cryptography and never makes a network call to the public
+    endpoint (which is unreachable from inside Docker).
+    MinIO defaults to us-east-1 when no region is configured.
+    """
+    global _public_client
+    if _public_client is None:
+        _public_client = Minio(
+            endpoint=settings.minio_public_endpoint,
+            access_key=settings.minio_access_key,
+            secret_key=settings.minio_secret_key,
+            secure=settings.minio_public_use_ssl,
+        )
+        # Skip the bucket-region HTTP lookup during presigning
+        for bucket_name in MINIO_BUCKETS:
+            _public_client._region_map[bucket_name] = "us-east-1"
+    return _public_client
+
+
 async def init_buckets() -> None:
     """Create all required buckets on startup if they don't exist."""
+    import json
     client = get_minio_client()
     for bucket_name, is_public in MINIO_BUCKETS.items():
         if not client.bucket_exists(bucket_name):
             client.make_bucket(bucket_name)
-            if is_public:
-                policy = f"""{{
-                    "Version":"2012-10-17",
-                    "Statement":[{{
-                        "Effect":"Allow",
-                        "Principal":{{"AWS":["*"]}},
-                        "Action":["s3:GetObject"],
-                        "Resource":["arn:aws:s3:::{bucket_name}/*"]
-                    }}]
-                }}"""
-                client.set_bucket_policy(bucket_name, policy)
+        
+        # Always set/update policy for public buckets
+        if is_public:
+            policy = {
+                "Version": "2012-10-17",
+                "Statement": [
+                    {
+                        "Effect": "Allow",
+                        "Principal": {"AWS": ["*"]},
+                        "Action": ["s3:GetObject"],
+                        "Resource": [f"arn:aws:s3:::{bucket_name}/*"]
+                    }
+                ]
+            }
+            client.set_bucket_policy(bucket_name, json.dumps(policy))
 
 
 def upload_file(
@@ -61,9 +91,15 @@ def upload_file(
 
 
 def get_signed_url(bucket: str, key: str, expires_in: int = SIGNED_URL_EXPIRE_SECONDS) -> str:
-    """Generate a pre-signed GET URL for private documents."""
+    """Generate a pre-signed GET URL for private documents.
+
+    Uses the public-endpoint client so the HMAC signature is tied to the
+    hostname the browser will actually use (e.g. localhost:9000 instead of
+    the internal Docker hostname minio:9000).  Replacing the hostname after
+    signing would break the signature, so we sign with the right host upfront.
+    """
     from datetime import timedelta
-    client = get_minio_client()
+    client = get_public_minio_client()
     return client.presigned_get_object(
         bucket_name=bucket,
         object_name=key,
@@ -73,8 +109,20 @@ def get_signed_url(bucket: str, key: str, expires_in: int = SIGNED_URL_EXPIRE_SE
 
 def get_public_url(bucket: str, key: str) -> str:
     """Return a direct public URL for public buckets."""
-    scheme = "https" if settings.minio_use_ssl else "http"
-    return f"{scheme}://{settings.minio_endpoint}/{bucket}/{key}"
+    scheme = "https" if settings.minio_public_use_ssl else "http"
+    return f"{scheme}://{settings.minio_public_endpoint}/{bucket}/{key}"
+
+
+def resolve_public_url(bucket: str, value: str | None) -> str | None:
+    """Return a public URL for stored object keys while keeping existing URLs intact."""
+    if not value:
+        return None
+
+    parsed = urlparse(value)
+    if parsed.scheme and parsed.netloc:
+        return value
+
+    return get_public_url(bucket, value.lstrip("/"))
 
 
 def delete_file(bucket: str, key: str) -> None:

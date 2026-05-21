@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
@@ -11,7 +12,7 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     full_name: str = Field(..., min_length=2, max_length=255)
     password: str = Field(..., min_length=8, max_length=128)
-    group_type: Literal["D", "F"]
+    group_type: Literal["D", "D1", "D2", "F", "F1", "F2", "F3", "F4"]
     course_year: int = Field(..., ge=2, le=3)
     gpa: float | None = Field(None, ge=0.0, le=4.0)
     ielts_passed: bool = False
@@ -111,3 +112,19 @@ class TokenEnvelope(BaseModel):
 class AccessTokenEnvelope(BaseModel):
     success: bool = True
     data: AccessTokenResponse
+
+
+class SessionOut(BaseModel):
+    id: UUID
+    device_name: str | None
+    ip_address: str | None
+    created_at: datetime
+    last_used_at: datetime
+    expires_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class SessionsResponse(BaseModel):
+    success: bool = True
+    data: list[SessionOut]

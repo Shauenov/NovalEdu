@@ -1,9 +1,11 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, File, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.constants import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
+from app.storage.upload import process_and_upload_image
+
+from app.core.constants import BUCKET_NEWS, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
 from app.core.permissions import CurrentUser, get_current_user
 from app.core.response import SuccessResponse
 from app.database import get_db
@@ -88,6 +90,23 @@ async def delete_news(
     service = NewsService(db)
     await service.delete_news(news_id, current_user.role)
     return SuccessResponse()
+
+
+@router.post("/{news_id}/cover", response_model=NewsResponse)
+async def upload_news_cover(
+    news_id: UUID,
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+) -> NewsResponse:
+    cover_url = await process_and_upload_image(
+        file=file,
+        bucket=BUCKET_NEWS,
+        prefix=f"{news_id}/cover"
+    )
+    service = NewsService(db)
+    item = await service.update_news(news_id, NewsUpdate(cover_url=cover_url), current_user.role)
+    return NewsResponse(data=NewsOut.model_validate(item))
 
 
 @router.post("/{news_id}/add-to-calendar", response_model=CalendarEventResponse, status_code=201)
