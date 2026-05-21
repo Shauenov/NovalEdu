@@ -1,6 +1,6 @@
-# EduConductor Backend
+﻿# eduadviser Backend
 
-EduConductor is a FastAPI-based backend for managing student admissions, tasks, appointments, documents, messaging, and supporting academic workflows.
+eduadviser is a FastAPI-based backend for managing student admissions, tasks, appointments, documents, messaging, and supporting academic workflows.
 
 ## Documentation
 

@@ -38,6 +38,10 @@ class StudentBriefForEnrollment(BaseModel):
     id: UUID
     full_name: str
     avatar_url: str | None = None
+    is_active: bool = True
+    # from student_profiles (nullable — profile may not exist)
+    group_type: str | None = None
+    course_year: int | None = None
 
     model_config = {"from_attributes": True}
 

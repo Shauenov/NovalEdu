@@ -1,4 +1,4 @@
-from typing import Optional
+﻿from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, File, UploadFile
@@ -71,11 +71,12 @@ async def delete_my_account(
 
 @router.get("/students", response_model=PaginatedStudents)
 async def list_students(
-    group_type: Optional[str] = Query(None, pattern="^[DF]$"),
+    group_type: Optional[str] = Query(None, pattern="^(D1|D2|D|F1|F2|F3|F4|F)$"),
     course_year: Optional[int] = Query(None, ge=2, le=3),
     ielts_passed: Optional[bool] = Query(None),
     sat_passed: Optional[bool] = Query(None),
     search: Optional[str] = Query(None, max_length=100),
+    sort_by: Optional[str] = Query(None, pattern="^(gpa|full_name)$"),
     page: int = Query(1, ge=1),
     page_size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -89,6 +90,7 @@ async def list_students(
         ielts_passed=ielts_passed,
         sat_passed=sat_passed,
         search=search,
+        sort_by=sort_by,
         page=page,
         page_size=page_size,
     )
@@ -126,7 +128,7 @@ class InviteStudentRequest(BaseModel):
     password: str
 
 
-@router.post("/conductor/students/invite", response_model=UserResponse, status_code=201)
+@router.post("/adviser/students/invite", response_model=UserResponse, status_code=201)
 async def invite_student(
     body: InviteStudentRequest,
     db: AsyncSession = Depends(get_db),

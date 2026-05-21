@@ -1,4 +1,4 @@
-import io
+﻿import io
 import uuid
 from uuid import UUID
 
@@ -37,18 +37,18 @@ class MessagesService:
             "created_at": msg.created_at,
         }
 
-    async def get_or_create_conversation(self, student_id: UUID, conductor_id: UUID):
-        return await self.repo.get_or_create_conversation(student_id, conductor_id)
+    async def get_or_create_conversation(self, student_id: UUID, adviser_id: UUID):
+        return await self.repo.get_or_create_conversation(student_id, adviser_id)
 
     async def get_or_create_my_conversation(self, student_id: UUID):
         user_repo = UsersRepository(self.db)
-        conductor = await user_repo.get_by_email(settings.conductor_email)
-        if not conductor:
-            raise NotFoundException("Conductor not found")
-        return await self.repo.get_or_create_conversation(student_id, conductor.id)
+        adviser = await user_repo.get_by_email(settings.ADVISER_email)
+        if not adviser:
+            raise NotFoundException("Adviser not found")
+        return await self.repo.get_or_create_conversation(student_id, adviser.id)
 
-    async def list_conversations_for_user(self, user_id: UUID, is_conductor: bool):
-        return await self.repo.list_conversations_for_user(user_id, is_conductor)
+    async def list_conversations_for_user(self, user_id: UUID, is_adviser: bool):
+        return await self.repo.list_conversations_for_user(user_id, is_adviser)
 
     async def list_messages(self, convo_id: UUID, limit: int = 50, offset: int = 0) -> list[dict]:
         rows = await self.repo.list_messages_with_sender(convo_id, limit=limit, offset=offset)
@@ -58,19 +58,19 @@ class MessagesService:
         convo = await self.repo.get_conversation(convo_id)
         if not convo:
             raise NotFoundException("Conversation not found")
-        if reader_id not in (convo.student_id, convo.conductor_id):
+        if reader_id not in (convo.student_id, convo.adviser_id):
             raise ForbiddenException("Access denied")
         await self.repo.mark_conversation_read(convo_id, reader_id)
         await self.db.commit()
 
     async def list_conversation_ids_for_broadcast(
         self,
-        conductor_id: UUID,
+        adviser_id: UUID,
         group_type: str | None = None,
         ielts_passed: bool | None = None,
     ) -> list[UUID]:
         return await self.repo.list_conversation_ids_by_filters(
-            conductor_id=conductor_id,
+            adviser_id=adviser_id,
             group_type=group_type,
             ielts_passed=ielts_passed,
         )
@@ -117,7 +117,7 @@ class MessagesService:
             if not convo:
                 raise NotFoundException("Conversation not found")
 
-            recipient_id = convo.conductor_id if sender_id == convo.student_id else convo.student_id
+            recipient_id = convo.adviser_id if sender_id == convo.student_id else convo.student_id
             from app.modules.notifications.service import NotificationsService
             from app.workers.email_tasks import send_email_task
 
@@ -188,7 +188,7 @@ class MessagesService:
                 if not convo:
                     continue
                 recipient_id = (
-                    convo.conductor_id if sender_id == convo.student_id else convo.student_id
+                    convo.adviser_id if sender_id == convo.student_id else convo.student_id
                 )
                 recipient = await user_repo.get_by_id(recipient_id)
                 if not recipient:

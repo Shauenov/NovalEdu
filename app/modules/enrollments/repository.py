@@ -4,6 +4,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.enrollments.models import Enrollment
+from app.modules.profile.models import StudentProfile
 from app.modules.users.models import User
 
 
@@ -46,10 +47,11 @@ class EnrollmentsRepository:
         count_stmt = select(func.count(Enrollment.id)).where(*base_where)
         total: int = (await self.db.execute(count_stmt)).scalar_one()
 
-        # Data with join
+        # Data with join (also left-join student_profiles for group info)
         stmt = (
-            select(Enrollment, User)
+            select(Enrollment, User, StudentProfile)
             .join(User, User.id == Enrollment.student_id)
+            .outerjoin(StudentProfile, StudentProfile.user_id == User.id)
             .where(*base_where)
             .order_by(Enrollment.created_at.desc())
             .offset((page - 1) * page_size)
@@ -58,7 +60,7 @@ class EnrollmentsRepository:
         rows = (await self.db.execute(stmt)).all()
 
         result = []
-        for enrollment, user in rows:
+        for enrollment, user, profile in rows:
             result.append({
                 "id": enrollment.id,
                 "student_id": enrollment.student_id,
@@ -66,6 +68,9 @@ class EnrollmentsRepository:
                     "id": user.id,
                     "full_name": user.full_name,
                     "avatar_url": user.avatar_url,
+                    "is_active": user.is_active,
+                    "group_type": profile.group_type if profile else None,
+                    "course_year": profile.course_year if profile else None,
                 },
                 "university_id": enrollment.university_id,
                 "status": enrollment.status,

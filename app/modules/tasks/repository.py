@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+﻿from datetime import datetime, timezone
 from uuid import UUID
 
 from sqlalchemy import and_, func, select, update
@@ -38,15 +38,15 @@ class TasksRepository:
         self,
         student_id: UUID,
         status: str | None = None,
-        is_conductor_task: bool | None = None,
+        is_adviser_task: bool | None = None,
         page: int = 1,
         page_size: int = DEFAULT_PAGE_SIZE,
     ) -> tuple[list[Task], int]:
         stmt = select(Task).where(Task.student_id == student_id)
         if status:
             stmt = stmt.where(Task.status == status)
-        if is_conductor_task is not None:
-            stmt = stmt.where(Task.is_conductor_task == is_conductor_task)
+        if is_adviser_task is not None:
+            stmt = stmt.where(Task.is_adviser_task == is_adviser_task)
 
         total = (await self.db.execute(select(func.count()).select_from(stmt.subquery()))).scalar_one()
         stmt = stmt.order_by(Task.created_at.desc()).offset((page - 1) * page_size).limit(page_size)

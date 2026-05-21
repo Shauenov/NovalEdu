@@ -16,6 +16,10 @@ class Roadmap(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     target_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
     is_public: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Optional link to a university — assigning this roadmap auto-enrolls the student
+    university_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("universities.id", ondelete="SET NULL"), nullable=True
+    )
     created_by: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
     )

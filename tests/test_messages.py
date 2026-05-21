@@ -1,4 +1,4 @@
-import pytest
+﻿import pytest
 from httpx import AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.users.models import User
@@ -17,16 +17,16 @@ async def test_messages_flow(async_client: AsyncClient, db_session: AsyncSession
         role="student",
         is_active=True
     )
-    conductor = User(
+    ADVISER = User(
         id=uuid.uuid4(),
-        email=settings.conductor_email,
-        full_name="System Conductor",
+        email=settings.ADVISER_email,
+        full_name="System ADVISER",
         password_hash=hash_password("pass"),
-        role="conductor",
+        role="adviser",
         is_active=True
     )
     db_session.add(student)
-    db_session.add(conductor)
+    db_session.add(ADVISER)
     await db_session.commit()
 
     token = create_access_token(user_id=student_id, role="student", email="student_msg@test.com")

@@ -1,4 +1,4 @@
-import uuid
+﻿import uuid
 from datetime import datetime, time
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, SmallInteger, String, Text, Time, func
@@ -51,7 +51,7 @@ class Task(Base):
     location: Mapped[str | None] = mapped_column(String(300), nullable=True)
     reminder_minutes: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    is_conductor_task: Mapped[bool] = mapped_column(Boolean, default=True)
+    is_adviser_task: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

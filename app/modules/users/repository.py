@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.constants import ROLE_STUDENT, DEFAULT_PAGE_SIZE
 from app.modules.users.models import User
 from app.modules.profile.models import StudentProfile
+from app.modules.tasks.models import Task
 
 
 class UsersRepository:
@@ -39,34 +40,87 @@ class UsersRepository:
         ielts_passed: bool | None = None,
         sat_passed: bool | None = None,
         search: str | None = None,
+        sort_by: str | None = None,
         page: int = 1,
         page_size: int = DEFAULT_PAGE_SIZE,
-    ) -> tuple[list[User], int]:
+    ) -> tuple[list[tuple], int]:
+        # Correlated subqueries for task counts
+        tasks_total_sq = (
+            select(func.count())
+            .where(Task.student_id == User.id)
+            .correlate(User)
+            .scalar_subquery()
+        )
+        tasks_done_sq = (
+            select(func.count())
+            .where(Task.student_id == User.id, Task.status == "done")
+            .correlate(User)
+            .scalar_subquery()
+        )
+        tasks_overdue_sq = (
+            select(func.count())
+            .where(Task.student_id == User.id, Task.status == "overdue")
+            .correlate(User)
+            .scalar_subquery()
+        )
+        tasks_in_progress_sq = (
+            select(func.count())
+            .where(Task.student_id == User.id, Task.status == "in_progress")
+            .correlate(User)
+            .scalar_subquery()
+        )
+
         stmt = (
-            select(User)
+            select(
+                User,
+                StudentProfile,
+                tasks_total_sq.label("tasks_total"),
+                tasks_done_sq.label("tasks_done"),
+                tasks_overdue_sq.label("tasks_overdue"),
+                tasks_in_progress_sq.label("tasks_in_progress"),
+            )
             .join(StudentProfile, StudentProfile.user_id == User.id, isouter=True)
             .where(User.role == ROLE_STUDENT, User.is_active == True)
         )
 
-        if group_type:
-            stmt = stmt.where(StudentProfile.group_type == group_type)
-        if course_year:
-            stmt = stmt.where(StudentProfile.course_year == course_year)
-        if ielts_passed is not None:
-            stmt = stmt.where(StudentProfile.ielts_passed == ielts_passed)
-        if sat_passed is not None:
-            stmt = stmt.where(StudentProfile.sat_passed == sat_passed)
-        if search:
-            stmt = stmt.where(User.full_name.ilike(f"%{search}%"))
+        def _apply_filters(q):
+            """Apply all user-provided filters to a query."""
+            if group_type:
+                # "D" or "F" alone → match all sub-groups (D1, D2 / F1..F4)
+                if group_type in ("D", "F"):
+                    q = q.where(StudentProfile.group_type.like(f"{group_type}%"))
+                else:
+                    q = q.where(StudentProfile.group_type == group_type)
+            if course_year:
+                q = q.where(StudentProfile.course_year == course_year)
+            if ielts_passed is not None:
+                q = q.where(StudentProfile.ielts_passed == ielts_passed)
+            if sat_passed is not None:
+                q = q.where(StudentProfile.sat_passed == sat_passed)
+            if search:
+                q = q.where(User.full_name.ilike(f"%{search}%"))
+            return q
 
-        # Count
-        count_stmt = select(func.count()).select_from(stmt.subquery())
-        total = (await self.db.execute(count_stmt)).scalar_one()
+        stmt = _apply_filters(stmt)
+
+        # Count with the same filters
+        count_base = _apply_filters(
+            select(func.count(User.id))
+            .join(StudentProfile, StudentProfile.user_id == User.id, isouter=True)
+            .where(User.role == ROLE_STUDENT, User.is_active == True)
+        )
+        total = (await self.db.execute(count_base)).scalar_one()
+
+        # Sorting
+        if sort_by == "gpa":
+            stmt = stmt.order_by(StudentProfile.gpa.desc().nulls_last())
+        else:
+            stmt = stmt.order_by(User.full_name.asc())
 
         # Paginate
         stmt = stmt.offset((page - 1) * page_size).limit(page_size)
         result = await self.db.execute(stmt)
-        return result.scalars().all(), total
+        return result.all(), total
 
     async def create_student(self, **kwargs) -> User:
         user = User(role=ROLE_STUDENT, **kwargs)

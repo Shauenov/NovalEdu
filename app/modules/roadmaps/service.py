@@ -1,12 +1,13 @@
-from datetime import datetime, timedelta, timezone
+﻿from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.constants import DEFAULT_PAGE_SIZE, ROLE_ADMIN, ROLE_CONDUCTOR, ROLE_STUDENT
+from app.core.constants import DEFAULT_PAGE_SIZE, ROLE_ADMIN, ROLE_ADVISER, ROLE_STUDENT
 from app.core.exceptions import ForbiddenException, NotFoundException, ValidationException
 from app.modules.calendar.schemas import CalendarEventCreate
 from app.modules.calendar.service import CalendarService
+from app.modules.enrollments.repository import EnrollmentsRepository
 from app.modules.notifications.service import NotificationsService
 from app.modules.roadmaps.repository import RoadmapsRepository
 from app.modules.roadmaps.schemas import RoadmapCreate, RoadmapUpdate, AssignRequest
@@ -25,27 +26,28 @@ class RoadmapsService:
         page: int = 1,
         page_size: int = DEFAULT_PAGE_SIZE,
     ):
-        include_unpublished = requester_role in (ROLE_ADMIN, ROLE_CONDUCTOR)
+        include_unpublished = requester_role in (ROLE_ADMIN, ROLE_ADVISER)
         return await self.repo.list_roadmaps(include_unpublished, page, page_size)
 
     async def get_roadmap_detail(self, roadmap_id: UUID, requester_role: str):
         roadmap = await self.repo.get_by_id(roadmap_id)
         if not roadmap:
             raise NotFoundException("Roadmap not found")
-        if not roadmap.is_public and requester_role not in (ROLE_ADMIN, ROLE_CONDUCTOR):
+        if not roadmap.is_public and requester_role not in (ROLE_ADMIN, ROLE_ADVISER):
             raise NotFoundException("Roadmap not found")
         tasks = await self.repo.list_template_tasks(roadmap_id)
         return roadmap, tasks
 
     async def create_roadmap(self, data: RoadmapCreate, created_by: UUID, requester_role: str):
-        if requester_role not in (ROLE_ADMIN, ROLE_CONDUCTOR):
-            raise ForbiddenException("Only conductor or admin can create roadmaps")
+        if requester_role not in (ROLE_ADMIN, ROLE_ADVISER):
+            raise ForbiddenException("Only ADVISER or admin can create roadmaps")
 
         roadmap = await self.repo.create_roadmap(
             title=data.title,
             description=data.description,
             target_type=data.target_type,
             is_public=data.is_public,
+            university_id=data.university_id,
             created_by=created_by,
         )
 
@@ -62,18 +64,20 @@ class RoadmapsService:
         return roadmap
 
     async def update_roadmap(self, roadmap_id: UUID, data: RoadmapUpdate, requester_role: str):
-        if requester_role not in (ROLE_ADMIN, ROLE_CONDUCTOR):
-            raise ForbiddenException("Only conductor or admin can update roadmaps")
+        if requester_role not in (ROLE_ADMIN, ROLE_ADVISER):
+            raise ForbiddenException("Only ADVISER or admin can update roadmaps")
         roadmap = await self.repo.get_by_id(roadmap_id)
         if not roadmap:
             raise NotFoundException("Roadmap not found")
-        updated = await self.repo.update_roadmap(roadmap, data.model_dump(exclude_unset=True))
+        # Allow explicitly clearing university_id (pass None)
+        update_data = data.model_dump(exclude_unset=True)
+        updated = await self.repo.update_roadmap(roadmap, update_data)
         await self.db.commit()
         return updated
 
     async def delete_roadmap(self, roadmap_id: UUID, requester_role: str) -> None:
-        if requester_role not in (ROLE_ADMIN, ROLE_CONDUCTOR):
-            raise ForbiddenException("Only conductor or admin can delete roadmaps")
+        if requester_role not in (ROLE_ADMIN, ROLE_ADVISER):
+            raise ForbiddenException("Only ADVISER or admin can delete roadmaps")
         roadmap = await self.repo.get_by_id(roadmap_id)
         if not roadmap:
             raise NotFoundException("Roadmap not found")
@@ -87,8 +91,8 @@ class RoadmapsService:
         assigned_by: UUID,
         requester_role: str,
     ):
-        if requester_role not in (ROLE_ADMIN, ROLE_CONDUCTOR):
-            raise ForbiddenException("Only conductor or admin can assign roadmaps")
+        if requester_role not in (ROLE_ADMIN, ROLE_ADVISER):
+            raise ForbiddenException("Only ADVISER or admin can assign roadmaps")
 
         roadmap = await self.repo.get_by_id(roadmap_id)
         if not roadmap:
@@ -101,6 +105,21 @@ class RoadmapsService:
             title=roadmap.title,
         )
         await self.db.commit()
+
+        # Auto-enroll student in the linked university (if any)
+        if roadmap.university_id:
+            enroll_repo = EnrollmentsRepository(self.db)
+            existing = await enroll_repo.get_by_student_and_university(
+                data.student_id, roadmap.university_id
+            )
+            if not existing:
+                await enroll_repo.create(
+                    student_id=data.student_id,
+                    university_id=roadmap.university_id,
+                    status="selected",
+                    progress=0,
+                )
+                await self.db.commit()
 
         template_tasks = await self.repo.list_template_tasks(roadmap.id)
         overrides = {t.template_task_id: t.deadline for t in data.customize_tasks}
@@ -124,7 +143,7 @@ class RoadmapsService:
                 student_roadmap_id=student_roadmap.id,
             )
 
-            task = await tasks_service.create_conductor_task(
+            task = await tasks_service.create_adviser_task(
                 student_id=data.student_id,
                 data=task_data,
                 created_by=assigned_by,
@@ -158,6 +177,22 @@ class RoadmapsService:
                 source_type="roadmap",
             )
             await self.db.commit()
+
+            from app.modules.users.repository import UsersRepository
+            from app.workers.email_tasks import send_email_task
+            user_repo = UsersRepository(self.db)
+            student = await user_repo.get_by_id(data.student_id)
+            if student and student.email:
+                send_email_task.delay(
+                    to=student.email,
+                    subject="New roadmap assigned",
+                    template="roadmap_assigned.html",
+                    context={
+                        "full_name": student.full_name,
+                        "roadmap_title": roadmap.title,
+                        "description": roadmap.description or "",
+                    },
+                )
         except Exception:
             pass
 

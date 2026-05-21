@@ -1,4 +1,4 @@
-from datetime import datetime, time, timezone
+﻿from datetime import datetime, time, timezone
 from typing import Literal
 from uuid import UUID
 
@@ -63,7 +63,7 @@ class TaskOut(BaseModel):
     location: str | None
     reminder_minutes: int | None
     completed_at: datetime | None
-    is_conductor_task: bool
+    is_adviser_task: bool
     student_roadmap_id: UUID | None
     created_at: datetime
     updated_at: datetime

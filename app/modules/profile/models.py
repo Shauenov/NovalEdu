@@ -19,7 +19,7 @@ class StudentProfile(Base):
         unique=True,
         nullable=False,
     )
-    group_type: Mapped[str] = mapped_column(String(1), nullable=False)        # D | F
+    group_type: Mapped[str] = mapped_column(String(2), nullable=False)        # D | D1 | D2 | F | F1 | F2 | F3 | F4
     course_year: Mapped[int] = mapped_column(SmallInteger, nullable=False)    # 2 | 3
     gpa: Mapped[Decimal | None] = mapped_column(Numeric(3, 2), nullable=True)
     ielts_passed: Mapped[bool] = mapped_column(Boolean, default=False)

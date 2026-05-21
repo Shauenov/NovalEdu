@@ -1,4 +1,4 @@
-import asyncio
+﻿import asyncio
 from datetime import datetime, time, timedelta, timezone
 
 from sqlalchemy import select
@@ -82,14 +82,14 @@ async def _send_appointment_reminders() -> None:
     end_utc = end_local.astimezone(timezone.utc)
 
     Student = aliased(User)
-    Conductor = aliased(User)
+    Adviser = aliased(User)
 
     async with AsyncSessionLocal() as db:
         result = await db.execute(
-            select(Appointment, AvailabilitySlot, Student, Conductor)
+            select(Appointment, AvailabilitySlot, Student, Adviser)
             .join(AvailabilitySlot, AvailabilitySlot.id == Appointment.slot_id)
             .join(Student, Student.id == Appointment.student_id)
-            .join(Conductor, Conductor.id == Appointment.conductor_id)
+            .join(Adviser, Adviser.id == Appointment.adviser_id)
             .where(
                 Appointment.status == APPOINTMENT_STATUS_CONFIRMED,
                 AvailabilitySlot.start_time >= start_utc,
@@ -98,7 +98,7 @@ async def _send_appointment_reminders() -> None:
         )
         notifier = NotificationsService(db)
 
-        for appt, slot, student, conductor in result.all():
+        for appt, slot, student, adviser in result.all():
             appt_time_local = slot.start_time.astimezone(ALMATY_TZ)
             body = f"Appointment at {appt_time_local:%Y-%m-%d %H:%M}."
 
@@ -111,7 +111,7 @@ async def _send_appointment_reminders() -> None:
                 source_type="appointment",
             )
             await notifier.create_notification(
-                user_id=conductor.id,
+                user_id=adviser.id,
                 notification_type="appointment_reminder",
                 title="Appointment reminder",
                 body=body,
@@ -127,16 +127,16 @@ async def _send_appointment_reminders() -> None:
                     context={
                         "full_name": student.full_name,
                         "appointment_time": appt_time_local.strftime("%Y-%m-%d %H:%M"),
-                        "participant_name": conductor.full_name,
+                        "participant_name": adviser.full_name,
                     },
                 )
-            if conductor.email:
+            if adviser.email:
                 send_email_task.delay(
-                    to=conductor.email,
+                    to=adviser.email,
                     subject="Appointment reminder",
                     template="appointment_reminder.html",
                     context={
-                        "full_name": conductor.full_name,
+                        "full_name": adviser.full_name,
                         "appointment_time": appt_time_local.strftime("%Y-%m-%d %H:%M"),
                         "participant_name": student.full_name,
                     },

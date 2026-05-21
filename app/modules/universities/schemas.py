@@ -25,6 +25,23 @@ class UniversityBase(BaseModel):
     is_published: bool = True
     last_verified_at: datetime | None = None
 
+    # Dormitory
+    dorm_available: bool = False
+    dorm_cost_per_month: int | None = Field(None, ge=0)
+    dorm_cost_currency: str | None = Field(None, max_length=10)
+    dorm_guaranteed_for: str | None = Field(None, max_length=100)
+    dorm_room_types: str | None = Field(None, max_length=200)
+    dorm_image_url: str | None = Field(None, max_length=500)
+
+    # Campus amenities
+    dining_spots_total: int | None = Field(None, ge=0)
+    cafes_count: str | None = Field(None, max_length=20)
+    shops_count: str | None = Field(None, max_length=20)
+    parking_count: int | None = Field(None, ge=0)
+    has_medical_center: bool = False
+    has_library: bool = False
+    campus_extra: str | None = None
+
 
 class UniversityCreate(UniversityBase):
     pass
@@ -46,6 +63,21 @@ class UniversityUpdate(BaseModel):
     language_of_instr: str | None = Field(None, max_length=100)
     is_published: bool | None = None
     last_verified_at: datetime | None = None
+    # Dormitory
+    dorm_available: bool | None = None
+    dorm_cost_per_month: int | None = Field(None, ge=0)
+    dorm_cost_currency: str | None = Field(None, max_length=10)
+    dorm_guaranteed_for: str | None = Field(None, max_length=100)
+    dorm_room_types: str | None = Field(None, max_length=200)
+    dorm_image_url: str | None = Field(None, max_length=500)
+    # Campus amenities
+    dining_spots_total: int | None = Field(None, ge=0)
+    cafes_count: str | None = Field(None, max_length=20)
+    shops_count: str | None = Field(None, max_length=20)
+    parking_count: int | None = Field(None, ge=0)
+    has_medical_center: bool | None = None
+    has_library: bool | None = None
+    campus_extra: str | None = None
 
 
 class UniversityOut(UniversityBase):

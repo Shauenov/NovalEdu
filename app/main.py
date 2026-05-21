@@ -1,4 +1,4 @@
-from contextlib import asynccontextmanager
+﻿from contextlib import asynccontextmanager
 
 import redis.asyncio as aioredis
 from fastapi import FastAPI, Request
@@ -23,7 +23,7 @@ def _swagger_ui_html(openapi_url: str) -> str:
 <html>
     <head>
         <meta charset=\"UTF-8\" />
-        <title>Nobal EduConductor API - Swagger UI</title>
+        <title>Nobal eduadviser API - Swagger UI</title>
         <link rel=\"stylesheet\" type=\"text/css\" href=\"https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css\" />
         <link rel=\"icon\" type=\"image/png\" href=\"https://fastapi.tiangolo.com/img/favicon.png\" />
     </head>
@@ -121,7 +121,7 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     application = FastAPI(
-        title="Nobal EduConductor API",
+        title="Nobal eduadviser API",
         description="Student Admission Management Platform",
         version="1.0.0",
         docs_url=None,
@@ -143,6 +143,9 @@ def create_app() -> FastAPI:
         CORSMiddleware,
         allow_origins=[
             settings.app_host,
+            settings.frontend_url,
+            "https://nobal.tech",
+            "https://www.nobal.tech",
             "http://localhost:3000",
             "http://localhost:8080",
         ],

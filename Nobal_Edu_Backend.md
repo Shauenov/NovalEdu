@@ -1,4 +1,4 @@
-# Technical Specification: Backend System
+﻿# Technical Specification: Backend System
 ## Nobal Education — Student Admission Management Platform
 
 **Version:** 1.0  
@@ -28,7 +28,7 @@
    - 5.11 [Notifications](#511-notifications)
    - 5.12 [FAQ](#512-faq)
    - 5.13 [Alumni Stories](#513-alumni-stories)
-   - 5.14 [Reports (Conductor/Admin)](#514-reports-conductoradmin)
+   - 5.14 [Reports (ADVISER/Admin)](#514-reports-ADVISERadmin)
 6. [Notification System](#6-notification-system)
 7. [File Storage Strategy](#7-file-storage-strategy)
 8. [Email Integration](#8-email-integration)
@@ -47,7 +47,7 @@
 
 ### 1.1 Purpose
 
-Nobal Education is a platform designed for a college-level admission advisor ("Conductor") and their students. The Conductor works 1-on-1 with approximately 100 students per year (2nd and 3rd year), guiding them through:
+Nobal Education is a platform designed for a college-level admission advisor ("ADVISER") and their students. The ADVISER works 1-on-1 with approximately 100 students per year (2nd and 3rd year), guiding them through:
 
 - University application process (Kazakhstan + abroad)
 - Standardized test preparation (IELTS, SAT, ENT/KTA)
@@ -60,12 +60,12 @@ Nobal Education is a platform designed for a college-level admission advisor ("C
 | Role | Description |
 |------|-------------|
 | `student` | College student, uses mobile app (Flutter) |
-| `conductor` | Admission advisor, uses web dashboard |
-| `admin` | System administrator, full control (can be same person as conductor) |
+| `ADVISER` | Admission advisor, uses web dashboard |
+| `admin` | System administrator, full control (can be same person as ADVISER) |
 
 ### 1.3 Key Constraints
 
-- Single conductor per deployment
+- Single ADVISER per deployment
 - ~100 active students per academic year
 - Groups: D-group and F-group
 - Budget-conscious: minimize paid external services
@@ -82,7 +82,7 @@ Nobal Education is a platform designed for a college-level admission advisor ("C
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                        Clients                           │
-│   Flutter App (Student)   │   Web Dashboard (Conductor)  │
+│   Flutter App (Student)   │   Web Dashboard (ADVISER)  │
 └──────────────┬────────────┴──────────────┬──────────────┘
                │                           │
                ▼                           ▼
@@ -198,7 +198,7 @@ CREATE TABLE users (
     email         VARCHAR(255) UNIQUE NOT NULL,
     full_name     VARCHAR(255) NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
-    role          VARCHAR(20) NOT NULL CHECK (role IN ('student','conductor','admin')),
+    role          VARCHAR(20) NOT NULL CHECK (role IN ('student','ADVISER','admin')),
     is_active     BOOLEAN DEFAULT TRUE,
     avatar_url    VARCHAR(500),
     created_at    TIMESTAMPTZ DEFAULT NOW(),
@@ -227,7 +227,7 @@ CREATE TABLE student_profiles (
     kta_score       SMALLINT,
     target_country  VARCHAR(100),
     target_major    VARCHAR(200),
-    notes           TEXT,                          -- conductor private notes
+    notes           TEXT,                          -- ADVISER private notes
     created_at      TIMESTAMPTZ DEFAULT NOW(),
     updated_at      TIMESTAMPTZ DEFAULT NOW()
 );
@@ -379,14 +379,14 @@ CREATE TABLE tasks (
     id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     student_id          UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     student_roadmap_id  UUID REFERENCES student_roadmaps(id) ON DELETE SET NULL,
-    created_by          UUID NOT NULL REFERENCES users(id),   -- conductor or admin
+    created_by          UUID NOT NULL REFERENCES users(id),   -- ADVISER or admin
     title               VARCHAR(300) NOT NULL,
     description         TEXT,
     status              VARCHAR(20) DEFAULT 'todo' CHECK (status IN ('todo','in_progress','done','overdue')),
     priority            VARCHAR(10) DEFAULT 'medium' CHECK (priority IN ('low','medium','high')),
     deadline            TIMESTAMPTZ,
     completed_at        TIMESTAMPTZ,
-    is_conductor_task   BOOLEAN DEFAULT TRUE,      -- FALSE = student personal task
+    is_ADVISER_task   BOOLEAN DEFAULT TRUE,      -- FALSE = student personal task
     created_at          TIMESTAMPTZ DEFAULT NOW(),
     updated_at          TIMESTAMPTZ DEFAULT NOW()
 );
@@ -400,9 +400,9 @@ CREATE INDEX idx_tasks_deadline ON tasks(deadline) WHERE deadline IS NOT NULL;
 CREATE TABLE appointments (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     student_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    conductor_id  UUID NOT NULL REFERENCES users(id),
+    ADVISER_id  UUID NOT NULL REFERENCES users(id),
     slot_id       UUID NOT NULL REFERENCES availability_slots(id),
-    status        VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending','confirmed','cancelled_by_student','cancelled_by_conductor','completed')),
+    status        VARCHAR(20) DEFAULT 'pending' CHECK (status IN ('pending','confirmed','cancelled_by_student','cancelled_by_ADVISER','completed')),
     notes         TEXT,                    -- student notes for the meeting
     cancelled_at  TIMESTAMPTZ,
     cancel_reason TEXT,
@@ -415,7 +415,7 @@ CREATE TABLE appointments (
 ```sql
 CREATE TABLE availability_slots (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    conductor_id    UUID NOT NULL REFERENCES users(id),
+    ADVISER_id    UUID NOT NULL REFERENCES users(id),
     start_time      TIMESTAMPTZ NOT NULL,
     end_time        TIMESTAMPTZ NOT NULL,
     duration_min    SMALLINT DEFAULT 45,
@@ -423,7 +423,7 @@ CREATE TABLE availability_slots (
     created_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_slots_conductor_time ON availability_slots(conductor_id, start_time);
+CREATE INDEX idx_slots_ADVISER_time ON availability_slots(ADVISER_id, start_time);
 CREATE INDEX idx_slots_available ON availability_slots(is_available, start_time);
 ```
 
@@ -447,10 +447,10 @@ CREATE INDEX idx_messages_conversation ON messages(conversation_id, created_at D
 CREATE TABLE conversations (
     id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     student_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    conductor_id  UUID NOT NULL REFERENCES users(id),
+    ADVISER_id  UUID NOT NULL REFERENCES users(id),
     last_message_at TIMESTAMPTZ,
     created_at    TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(student_id, conductor_id)
+    UNIQUE(student_id, ADVISER_id)
 );
 ```
 
@@ -597,7 +597,7 @@ PERMISSIONS = {
         "read:own_calendar", "create:own_calendar_event",
         "read:own_notifications",
     ],
-    "conductor": [
+    "ADVISER": [
         "read:all_students", "update:student_profile",
         "read:student_documents",
         "create:university", "update:university", "delete:university",
@@ -623,7 +623,7 @@ PERMISSIONS = {
 async def get_current_user(token: str = Depends(oauth2_scheme)) -> User: ...
 async def require_role(*roles: str): ...
 async def require_student(): ...
-async def require_conductor_or_admin(): ...
+async def require_ADVISER_or_admin(): ...
 ```
 
 ---
@@ -676,7 +676,7 @@ Auth header: `Authorization: Bearer <access_token>`
 **POST /auth/login**
 ```json
 // Request
-{ "email": "conductor@college.edu.kz", "password": "pass" }
+{ "email": "ADVISER@college.edu.kz", "password": "pass" }
 
 // Response 200
 {
@@ -684,7 +684,7 @@ Auth header: `Authorization: Bearer <access_token>`
   "data": {
     "access_token": "eyJ...",
     "refresh_token": "eyJ...",
-    "user": { "id": "uuid", "role": "conductor", "full_name": "Zarina Nurlanovna" }
+    "user": { "id": "uuid", "role": "ADVISER", "full_name": "Zarina Nurlanovna" }
   }
 }
 ```
@@ -695,13 +695,13 @@ Auth header: `Authorization: Bearer <access_token>`
 
 | Method | Path | Auth | Role | Description |
 |--------|------|------|------|-------------|
-| GET | `/students` | ✅ | conductor/admin | List all students with filters |
-| GET | `/students/{id}` | ✅ | conductor/admin/self | Get student full profile |
-| PUT | `/students/{id}/profile` | ✅ | conductor/admin/self | Update student profile |
+| GET | `/students` | ✅ | ADVISER/admin | List all students with filters |
+| GET | `/students/{id}` | ✅ | ADVISER/admin/self | Get student full profile |
+| PUT | `/students/{id}/profile` | ✅ | ADVISER/admin/self | Update student profile |
 | GET | `/users/me` | ✅ | any | Get own profile |
 | PUT | `/users/me` | ✅ | any | Update own profile |
 | DELETE | `/students/{id}` | ✅ | admin | Delete student account |
-| POST | `/conductor/students/invite` | ✅ | conductor/admin | Create student account manually |
+| POST | `/ADVISER/students/invite` | ✅ | ADVISER/admin | Create student account manually |
 
 **GET /students**
 ```
@@ -741,7 +741,7 @@ Query params:
 }
 ```
 
-**GET /students/{id}** — Full profile for conductor view:
+**GET /students/{id}** — Full profile for ADVISER view:
 ```json
 {
   "success": true,
@@ -764,10 +764,10 @@ Query params:
 
 | Method | Path | Auth | Role | Description |
 |--------|------|------|------|-------------|
-| GET | `/students/{id}/documents` | ✅ | conductor/admin/self | List documents |
+| GET | `/students/{id}/documents` | ✅ | ADVISER/admin/self | List documents |
 | POST | `/students/{id}/documents` | ✅ | self | Upload/replace document |
-| GET | `/students/{id}/documents/{doc_type}` | ✅ | conductor/admin/self | Download document |
-| DELETE | `/students/{id}/documents/{doc_type}` | ✅ | self/conductor | Delete document |
+| GET | `/students/{id}/documents/{doc_type}` | ✅ | ADVISER/admin/self | Download document |
+| DELETE | `/students/{id}/documents/{doc_type}` | ✅ | self/ADVISER | Delete document |
 
 **POST /students/{id}/documents**
 ```
@@ -806,12 +806,12 @@ Constraints:
 |--------|------|------|------|-------------|
 | GET | `/universities` | ✅ | any | List with filters |
 | GET | `/universities/{id}` | ✅ | any | Get detail with programs |
-| POST | `/universities` | ✅ | conductor/admin | Create |
-| PUT | `/universities/{id}` | ✅ | conductor/admin | Update |
-| DELETE | `/universities/{id}` | ✅ | conductor/admin | Soft delete |
-| POST | `/universities/{id}/programs` | ✅ | conductor/admin | Add program |
-| PUT | `/universities/{id}/programs/{prog_id}` | ✅ | conductor/admin | Update program |
-| DELETE | `/universities/{id}/programs/{prog_id}` | ✅ | conductor/admin | Delete program |
+| POST | `/universities` | ✅ | ADVISER/admin | Create |
+| PUT | `/universities/{id}` | ✅ | ADVISER/admin | Update |
+| DELETE | `/universities/{id}` | ✅ | ADVISER/admin | Soft delete |
+| POST | `/universities/{id}/programs` | ✅ | ADVISER/admin | Add program |
+| PUT | `/universities/{id}/programs/{prog_id}` | ✅ | ADVISER/admin | Update program |
+| DELETE | `/universities/{id}/programs/{prog_id}` | ✅ | ADVISER/admin | Delete program |
 
 **GET /universities**
 ```
@@ -869,9 +869,9 @@ Query params:
 |--------|------|------|------|-------------|
 | GET | `/news` | ✅ | any | List news/events |
 | GET | `/news/{id}` | ✅ | any | Get detail |
-| POST | `/news` | ✅ | conductor/admin | Create |
-| PUT | `/news/{id}` | ✅ | conductor/admin | Update |
-| DELETE | `/news/{id}` | ✅ | conductor/admin | Delete |
+| POST | `/news` | ✅ | ADVISER/admin | Create |
+| PUT | `/news/{id}` | ✅ | ADVISER/admin | Update |
+| DELETE | `/news/{id}` | ✅ | ADVISER/admin | Delete |
 | POST | `/news/{id}/add-to-calendar` | ✅ | student | Add event to own calendar |
 
 **GET /news**
@@ -882,7 +882,7 @@ Query params:
   - page, page_size
 ```
 
-**POST /news** (conductor)
+**POST /news** (ADVISER)
 ```json
 // Request
 {
@@ -911,15 +911,15 @@ Query params:
 
 | Method | Path | Auth | Role | Description |
 |--------|------|------|------|-------------|
-| GET | `/students/{id}/tasks` | ✅ | conductor/admin/self | List tasks |
-| POST | `/students/{id}/tasks` | ✅ | conductor/admin | Create conductor task for student |
+| GET | `/students/{id}/tasks` | ✅ | ADVISER/admin/self | List tasks |
+| POST | `/students/{id}/tasks` | ✅ | ADVISER/admin | Create ADVISER task for student |
 | POST | `/tasks/personal` | ✅ | student | Create own personal task |
-| PUT | `/tasks/{id}` | ✅ | conductor/admin or task-owner | Update task |
+| PUT | `/tasks/{id}` | ✅ | ADVISER/admin or task-owner | Update task |
 | PATCH | `/tasks/{id}/status` | ✅ | student (own) | Update task status |
-| DELETE | `/tasks/{id}` | ✅ | conductor/admin | Delete |
-| GET | `/tasks/{id}` | ✅ | conductor/admin/self | Get task detail |
+| DELETE | `/tasks/{id}` | ✅ | ADVISER/admin | Delete |
+| GET | `/tasks/{id}` | ✅ | ADVISER/admin/self | Get task detail |
 
-**POST /students/{id}/tasks** (conductor):
+**POST /students/{id}/tasks** (ADVISER):
 ```json
 // Request
 {
@@ -935,14 +935,14 @@ Query params:
 ```json
 // Request
 { "status": "done" }
-// Triggers: notification to conductor, auto-set completed_at
+// Triggers: notification to ADVISER, auto-set completed_at
 ```
 
 **GET /students/{id}/tasks**
 ```
 Query params:
   - status: todo|in_progress|done|overdue
-  - is_conductor_task: bool
+  - is_ADVISER_task: bool
   - page, page_size
 ```
 
@@ -954,13 +954,13 @@ Query params:
 |--------|------|------|------|-------------|
 | GET | `/roadmaps` | ✅ | any | List public roadmaps |
 | GET | `/roadmaps/{id}` | ✅ | any | Get roadmap detail with template tasks |
-| POST | `/roadmaps` | ✅ | conductor/admin | Create roadmap |
-| PUT | `/roadmaps/{id}` | ✅ | conductor/admin | Update |
-| DELETE | `/roadmaps/{id}` | ✅ | conductor/admin | Delete |
-| POST | `/roadmaps/{id}/assign` | ✅ | conductor/admin | Assign roadmap to student |
-| GET | `/students/{id}/roadmaps` | ✅ | conductor/admin/self | Get student assigned roadmaps |
+| POST | `/roadmaps` | ✅ | ADVISER/admin | Create roadmap |
+| PUT | `/roadmaps/{id}` | ✅ | ADVISER/admin | Update |
+| DELETE | `/roadmaps/{id}` | ✅ | ADVISER/admin | Delete |
+| POST | `/roadmaps/{id}/assign` | ✅ | ADVISER/admin | Assign roadmap to student |
+| GET | `/students/{id}/roadmaps` | ✅ | ADVISER/admin/self | Get student assigned roadmaps |
 
-**POST /roadmaps/{id}/assign** (conductor):
+**POST /roadmaps/{id}/assign** (ADVISER):
 ```json
 // Request
 {
@@ -982,16 +982,16 @@ Query params:
 
 | Method | Path | Auth | Role | Description |
 |--------|------|------|------|-------------|
-| GET | `/appointments/slots` | ✅ | student | Get available conductor slots |
-| POST | `/appointments/slots` | ✅ | conductor/admin | Create availability slot(s) |
-| DELETE | `/appointments/slots/{id}` | ✅ | conductor/admin | Delete slot (if not booked) |
+| GET | `/appointments/slots` | ✅ | student | Get available ADVISER slots |
+| POST | `/appointments/slots` | ✅ | ADVISER/admin | Create availability slot(s) |
+| DELETE | `/appointments/slots/{id}` | ✅ | ADVISER/admin | Delete slot (if not booked) |
 | POST | `/appointments` | ✅ | student | Book appointment |
-| GET | `/appointments` | ✅ | conductor/admin | List all appointments |
+| GET | `/appointments` | ✅ | ADVISER/admin | List all appointments |
 | GET | `/appointments/my` | ✅ | student | List own appointments |
-| PATCH | `/appointments/{id}/cancel` | ✅ | student/conductor | Cancel appointment |
-| PATCH | `/appointments/{id}/complete` | ✅ | conductor/admin | Mark completed |
+| PATCH | `/appointments/{id}/cancel` | ✅ | student/ADVISER | Cancel appointment |
+| PATCH | `/appointments/{id}/complete` | ✅ | ADVISER/admin | Mark completed |
 
-**POST /appointments/slots** (conductor — create weekly schedule):
+**POST /appointments/slots** (ADVISER — create weekly schedule):
 ```json
 // Request
 {
@@ -1012,7 +1012,7 @@ Query params:
 //   1. Creates appointment record
 //   2. Marks slot as unavailable
 //   3. Creates calendar_event for student
-//   4. Creates calendar_event for conductor
+//   4. Creates calendar_event for ADVISER
 //   5. Sends email + in-app notifications to both
 //   6. Schedules reminder job (same-day for both)
 ```
@@ -1035,12 +1035,12 @@ Query params:
 
 | Method | Path | Auth | Role | Description |
 |--------|------|------|------|-------------|
-| GET | `/conversations` | ✅ | conductor/admin | List all conversations |
+| GET | `/conversations` | ✅ | ADVISER/admin | List all conversations |
 | GET | `/conversations/my` | ✅ | student | Get own conversation |
 | GET | `/conversations/{id}/messages` | ✅ | participant | Get messages (paginated) |
 | POST | `/conversations/{id}/messages` | ✅ | participant | Send message |
 | PATCH | `/conversations/{id}/read` | ✅ | participant | Mark messages as read |
-| POST | `/messages/broadcast` | ✅ | conductor/admin | Send message to all students |
+| POST | `/messages/broadcast` | ✅ | ADVISER/admin | Send message to all students |
 
 **GET /conversations/{id}/messages**:
 ```
@@ -1056,7 +1056,7 @@ Query params: page, page_size (newest first)
       "id": "uuid",
       "sender_id": "uuid",
       "sender_name": "Zarina Nurlanovna",
-      "sender_role": "conductor",
+      "sender_role": "ADVISER",
       "body": "Don't forget to submit your CV draft before our meeting",
       "is_read": false,
       "created_at": "2026-04-30T09:15:00Z"
@@ -1066,7 +1066,7 @@ Query params: page, page_size (newest first)
 }
 ```
 
-**POST /messages/broadcast** (conductor):
+**POST /messages/broadcast** (ADVISER):
 ```json
 // Request
 {
@@ -1106,7 +1106,7 @@ Query params:
   "data": [
     {
       "id": "uuid",
-      "title": "Meeting with Conductor",
+      "title": "Meeting with ADVISER",
       "event_type": "appointment",
       "start_time": "2026-05-03T10:00:00+06:00",
       "end_time": "2026-05-03T10:45:00+06:00",
@@ -1137,7 +1137,7 @@ Query params:
       "id": "uuid",
       "type": "new_task",
       "title": "New task assigned",
-      "body": "Conductor assigned: Complete IELTS mock test",
+      "body": "ADVISER assigned: Complete IELTS mock test",
       "is_read": false,
       "created_at": "2026-04-30T08:00:00Z",
       "source": { "type": "task", "id": "uuid" }
@@ -1153,10 +1153,10 @@ Query params:
 | Method | Path | Auth | Role | Description |
 |--------|------|------|------|-------------|
 | GET | `/faqs` | ✅ | any | List active FAQs |
-| POST | `/faqs` | ✅ | conductor/admin | Create FAQ |
-| PUT | `/faqs/{id}` | ✅ | conductor/admin | Update |
-| DELETE | `/faqs/{id}` | ✅ | conductor/admin | Delete |
-| PATCH | `/faqs/reorder` | ✅ | conductor/admin | Reorder FAQs |
+| POST | `/faqs` | ✅ | ADVISER/admin | Create FAQ |
+| PUT | `/faqs/{id}` | ✅ | ADVISER/admin | Update |
+| DELETE | `/faqs/{id}` | ✅ | ADVISER/admin | Delete |
+| PATCH | `/faqs/reorder` | ✅ | ADVISER/admin | Reorder FAQs |
 
 ---
 
@@ -1166,19 +1166,19 @@ Query params:
 |--------|------|------|------|-------------|
 | GET | `/alumni` | ✅ | any | List published stories |
 | GET | `/alumni/{id}` | ✅ | any | Get story detail |
-| POST | `/alumni` | ✅ | conductor/admin | Create story |
-| PUT | `/alumni/{id}` | ✅ | conductor/admin | Update |
-| DELETE | `/alumni/{id}` | ✅ | conductor/admin | Delete |
+| POST | `/alumni` | ✅ | ADVISER/admin | Create story |
+| PUT | `/alumni/{id}` | ✅ | ADVISER/admin | Update |
+| DELETE | `/alumni/{id}` | ✅ | ADVISER/admin | Delete |
 
 ---
 
-### 5.14 Reports (Conductor/Admin)
+### 5.14 Reports (ADVISER/Admin)
 
 | Method | Path | Auth | Role | Description |
 |--------|------|------|------|-------------|
-| GET | `/reports/overview` | ✅ | conductor/admin | Dashboard statistics |
-| GET | `/reports/students` | ✅ | conductor/admin | Student progress report |
-| GET | `/reports/universities` | ✅ | conductor/admin | Application statistics |
+| GET | `/reports/overview` | ✅ | ADVISER/admin | Dashboard statistics |
+| GET | `/reports/students` | ✅ | ADVISER/admin | Student progress report |
+| GET | `/reports/universities` | ✅ | ADVISER/admin | Application statistics |
 
 **GET /reports/overview**:
 ```json
@@ -1205,9 +1205,9 @@ Query params:
 
 | Event | Recipient | Channel | Timing |
 |-------|-----------|---------|--------|
-| Student registers | Conductor | In-app + Email | Immediate |
-| Conductor assigns task | Student | In-app + Email | Immediate |
-| Student completes task | Conductor | In-app | Immediate |
+| Student registers | ADVISER | In-app + Email | Immediate |
+| ADVISER assigns task | Student | In-app + Email | Immediate |
+| Student completes task | ADVISER | In-app | Immediate |
 | New message received | Other party | In-app | Immediate |
 | Appointment booked | Both | In-app + Email | Immediate |
 | Appointment reminder | Both | In-app + Email | Same day (08:00) |
@@ -1216,7 +1216,7 @@ Query params:
 | Task deadline approaching (1 day) | Student | In-app + Email | 08:00 local time |
 | Task overdue | Student | In-app | 08:00 local time |
 | News event published | All students | In-app | Immediate |
-| University data staleness (1 year) | Conductor | In-app + Email | Once per day check |
+| University data staleness (1 year) | ADVISER | In-app + Email | Once per day check |
 | Roadmap assigned | Student | In-app + Email | Immediate |
 
 ### 6.2 Notification Creation Flow
@@ -1251,15 +1251,15 @@ MinIO is deployed as a Docker service. It provides S3-compatible API, runs on th
 
 **Buckets:**
 ```
-educonductor-documents/   → student documents (CV, letters)
-educonductor-avatars/     → user profile photos
-educonductor-universities/ → university logos and covers
-educonductor-news/        → news cover images
-educonductor-alumni/      → alumni story photos
+eduadviser-documents/   → student documents (CV, letters)
+eduadviser-avatars/     → user profile photos
+eduadviser-universities/ → university logos and covers
+eduadviser-news/        → news cover images
+eduadviser-alumni/      → alumni story photos
 ```
 
 **Access Policy:**
-- `educonductor-documents/` — **private** (access via signed URLs only)
+- `eduadviser-documents/` — **private** (access via signed URLs only)
 - All other buckets — **public-read**
 
 ### 7.2 Signed URL Generation
@@ -1295,7 +1295,7 @@ Use college SMTP server (primary) or Brevo free tier (backup, 300 emails/day fre
 EMAIL_HOST = "smtp.college.edu.kz"
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = "noreply@educonductor.college.edu.kz"
+EMAIL_HOST_USER = "noreply@eduadviser.college.edu.kz"
 ```
 
 ### 8.2 Email Templates
@@ -1309,7 +1309,7 @@ All emails are HTML templates using Jinja2:
 | `appointment_confirmed.html` | Appointment booked |
 | `appointment_reminder.html` | Day-of reminder |
 | `appointment_cancelled.html` | Cancellation |
-| `task_assigned.html` | New task from conductor |
+| `task_assigned.html` | New task from ADVISER |
 | `deadline_reminder.html` | 3-day and 1-day task deadline |
 | `new_message.html` | Unread message summary |
 
@@ -1345,7 +1345,7 @@ CELERY_TIMEZONE = "Asia/Almaty"
 | `check_task_deadlines` | Every day at 08:00 | Find tasks due in 3 days and 1 day, send reminders |
 | `mark_overdue_tasks` | Every day at 00:01 | Set `status=overdue` for past-deadline uncompleted tasks |
 | `check_appointment_reminders` | Every hour | Find appointments today, send reminder at 08:00 |
-| `check_university_staleness` | Every day at 09:00 | Find universities not verified in >365 days, notify conductor |
+| `check_university_staleness` | Every day at 09:00 | Find universities not verified in >365 days, notify ADVISER |
 | `cleanup_expired_tokens` | Every day at 02:00 | Delete expired refresh tokens from DB |
 
 ### 9.3 Task Definitions
@@ -1466,7 +1466,7 @@ class TaskCreate(BaseModel):
 ## 11. Project Structure
 
 ```
-educonductor-backend/
+eduadviser-backend/
 ├── app/
 │   ├── main.py                  # FastAPI app factory
 │   ├── config.py                # Settings (pydantic-settings)
@@ -1758,7 +1758,7 @@ networks:
 # ─── App ─────────────────────────────────────────────────
 APP_ENV=development                      # development | production
 APP_SECRET_KEY=change-this-to-a-very-long-random-secret
-APP_HOST=https://educonductor.college.edu.kz
+APP_HOST=https://eduadviser.college.edu.kz
 
 # ─── JWT ─────────────────────────────────────────────────
 JWT_ACCESS_TOKEN_EXPIRE_MINUTES=60
@@ -1766,7 +1766,7 @@ JWT_REFRESH_TOKEN_EXPIRE_DAYS=30
 JWT_ALGORITHM=HS256
 
 # ─── Database ────────────────────────────────────────────
-POSTGRES_DB=educonductor
+POSTGRES_DB=eduadviser
 POSTGRES_USER=ec_user
 POSTGRES_PASSWORD=change_this_password
 
@@ -1783,9 +1783,9 @@ MINIO_USE_SSL=false                      # true in production with SSL
 EMAIL_HOST=smtp.college.edu.kz
 EMAIL_PORT=587
 EMAIL_USE_TLS=true
-EMAIL_HOST_USER=noreply@educonductor.college.edu.kz
+EMAIL_HOST_USER=noreply@eduadviser.college.edu.kz
 EMAIL_HOST_PASSWORD=smtp_password
-EMAIL_FROM_NAME=EduConductor
+EMAIL_FROM_NAME=eduadviser
 
 # ─── Timezone ────────────────────────────────────────────
 TZ=Asia/Almaty
@@ -1794,9 +1794,9 @@ TZ=Asia/Almaty
 MAX_DOCUMENT_SIZE_MB=10
 MAX_IMAGE_SIZE_MB=5
 
-# ─── Conductor Account ───────────────────────────────────
-CONDUCTOR_EMAIL=conductor@college.edu.kz
-CONDUCTOR_INITIAL_PASSWORD=change_immediately
+# ─── ADVISER Account ───────────────────────────────────
+ADVISER_EMAIL=ADVISER@college.edu.kz
+ADVISER_INITIAL_PASSWORD=change_immediately
 ```
 
 ---
@@ -1848,7 +1848,7 @@ async def forgot_password(request: Request, ...): ...
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "https://educonductor.college.edu.kz",   # Web dashboard
+        "https://eduadviser.college.edu.kz",   # Web dashboard
         "http://localhost:3000",                  # Dev
     ],
     allow_credentials=True,
@@ -1860,7 +1860,7 @@ app.add_middleware(
 ### 14.7 Data Privacy
 - Student documents stored in private MinIO bucket
 - Access only via time-limited signed URLs (1 hour)
-- Conductor can only view documents of own students
+- ADVISER can only view documents of own students
 - No cross-student data exposure
 
 ---
@@ -1868,7 +1868,7 @@ app.add_middleware(
 ## 15. Performance & Scalability
 
 ### 15.1 Target Load
-- 100 active users, single conductor
+- 100 active users, single ADVISER
 - Peak: 20 concurrent users
 - Message history: ~200 messages per conversation
 - Database size: estimated <5 GB for 2 years
@@ -1907,7 +1907,7 @@ Given the 1-week deadline for MVP, the following priority order is recommended:
 | P0 | Docker setup + DB schema + migrations | Day 1 |
 | P0 | Auth (register, login, JWT, refresh) | Day 1 |
 | P0 | Student profile CRUD | Day 2 |
-| P0 | Tasks (conductor creates, student updates status) | Day 2 |
+| P0 | Tasks (ADVISER creates, student updates status) | Day 2 |
 | P1 | Documents upload/download | Day 3 |
 | P1 | Messages (1-on-1 chat) | Day 3 |
 | P1 | Appointments (slots + booking) | Day 4 |
@@ -1981,4 +1981,4 @@ pytest-asyncio==0.23.6
 ---
 
 *End of Technical Specification*  
-*EduConductor Backend — v1.0 — April 2026*
+*eduadviser Backend — v1.0 — April 2026*

@@ -1,6 +1,6 @@
-# EduConductor Database
+﻿# eduadviser Database
 
-This document presents the database model for the EduConductor backend. The ER diagram shows how the core entities relate to each other, and the table below explains how each entity supports the business process.
+This document presents the database model for the eduadviser backend. The ER diagram shows how the core entities relate to each other, and the table below explains how each entity supports the business process.
 
 ## ER Diagram
 
@@ -83,7 +83,7 @@ erDiagram
         string priority
         datetime deadline
         datetime completed_at
-        boolean is_conductor_task
+        boolean is_ADVISER_task
         datetime created_at
     }
 
@@ -120,7 +120,7 @@ erDiagram
     CONVERSATION {
         uuid id PK
         uuid student_id FK
-        uuid conductor_id FK
+        uuid ADVISER_id FK
         datetime last_message_at
         datetime created_at
     }
@@ -151,7 +151,7 @@ erDiagram
 
     APPOINTMENT_SLOT {
         uuid id PK
-        uuid conductor_id FK
+        uuid ADVISER_id FK
         datetime start_time
         datetime end_time
         int duration_min
@@ -162,7 +162,7 @@ erDiagram
         uuid id PK
         uuid slot_id FK
         uuid student_id FK
-        uuid conductor_id FK
+        uuid ADVISER_id FK
         string status
         string notes
         string cancel_reason
@@ -257,18 +257,18 @@ erDiagram
 
 | Table | Business Meaning |
 |---|---|
-| `USER` | Stores the platform identities for students, conductors, and admins. |
+| `USER` | Stores the platform identities for students, ADVISERs, and admins. |
 | `PROFILE` | Holds academic and application context for a student, including GPA, test scores, and target goals. |
 | `DOCUMENT` | Represents uploaded student files such as CVs, motivation letters, and recommendation letters. |
-| `TASK` | Tracks personal and conductor-assigned work items with deadlines and status. |
+| `TASK` | Tracks personal and ADVISER-assigned work items with deadlines and status. |
 | `ROADMAP` | Defines a reusable guidance plan for a target admission path. |
 | `ROADMAP_TEMPLATE_TASK` | Stores the template tasks that make up a roadmap. |
 | `STUDENT_ROADMAP` | Captures a roadmap assignment to a specific student. |
-| `CONVERSATION` | Represents a one-to-one chat channel between a student and a conductor. |
+| `CONVERSATION` | Represents a one-to-one chat channel between a student and a ADVISER. |
 | `MESSAGE` | Stores individual chat messages inside a conversation. |
 | `NOTIFICATION` | Stores in-app alerts delivered to a user. |
-| `APPOINTMENT_SLOT` | Holds available meeting times opened by the conductor. |
-| `APPOINTMENT` | Stores a booked consultation between a student and a conductor. |
+| `APPOINTMENT_SLOT` | Holds available meeting times opened by the ADVISER. |
+| `APPOINTMENT` | Stores a booked consultation between a student and a ADVISER. |
 | `UNIVERSITY` | Describes a university that can be shown, compared, and managed in the system. |
 | `UNIVERSITY_PROGRAM` | Stores degree-level programs offered by a university. |
 | `NEWS` | Represents deadlines, events, and announcements shared with students. |

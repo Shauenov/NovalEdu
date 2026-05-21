@@ -1,16 +1,16 @@
-from datetime import datetime, timedelta, timezone
+﻿from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.constants import (
     ALMATY_TZ,
-    APPOINTMENT_STATUS_CANCELLED_BY_CONDUCTOR,
+    APPOINTMENT_STATUS_CANCELLED_BY_ADVISER,
     APPOINTMENT_STATUS_CANCELLED_BY_STUDENT,
     APPOINTMENT_STATUS_COMPLETED,
     APPOINTMENT_STATUS_CONFIRMED,
     ROLE_ADMIN,
-    ROLE_CONDUCTOR,
+    ROLE_ADVISER,
     ROLE_STUDENT,
 )
 from app.core.exceptions import ConflictException, ForbiddenException, NotFoundException, ValidationException
@@ -52,14 +52,14 @@ class AppointmentsService:
 
     async def create_slot(
         self,
-        conductor_id: UUID,
+        adviser_id: UUID,
         start_time: datetime,
         end_time: datetime | None = None,
         duration_min: int | None = None,
     ):
         end_time, duration_min = self._normalize_slot_times(start_time, end_time, duration_min)
         slot = await self.repo.create_slot(
-            conductor_id=conductor_id,
+            adviser_id=adviser_id,
             start_time=start_time,
             end_time=end_time,
             duration_min=duration_min,
@@ -69,14 +69,14 @@ class AppointmentsService:
 
     async def create_slots_bulk(
         self,
-        conductor_id: UUID,
+        adviser_id: UUID,
         slots: list[tuple[datetime, datetime | None, int | None]],
     ):
         items = []
         for start_time, end_time, duration_min in slots:
             end_time, duration_min = self._normalize_slot_times(start_time, end_time, duration_min)
             slot = await self.repo.create_slot(
-                conductor_id=conductor_id,
+                adviser_id=adviser_id,
                 start_time=start_time,
                 end_time=end_time,
                 duration_min=duration_min,
@@ -85,8 +85,8 @@ class AppointmentsService:
         await self.db.commit()
         return items
 
-    async def list_available_slots(self, conductor_id: UUID | None = None, from_time: datetime | None = None):
-        return await self.repo.list_available_slots(conductor_id=conductor_id, from_time=from_time)
+    async def list_available_slots(self, adviser_id: UUID | None = None, from_time: datetime | None = None):
+        return await self.repo.list_available_slots(adviser_id=adviser_id, from_time=from_time)
 
     async def book(
         self,
@@ -107,19 +107,19 @@ class AppointmentsService:
         appt = await self.repo.create_appointment(
             slot_id=slot.id,
             student_id=student_id,
-            conductor_id=slot.conductor_id,
+            adviser_id=slot.adviser_id,
             status=APPOINTMENT_STATUS_CONFIRMED,
             consultation_type=consultation_type,
             notes=notes,
         )
         user_repo = UsersRepository(self.db)
         student = await user_repo.get_by_id(student_id)
-        conductor = await user_repo.get_by_id(slot.conductor_id)
+        adviser = await user_repo.get_by_id(slot.adviser_id)
 
         calendar_repo = CalendarRepository(self.db)
         await calendar_repo.create(
             user_id=student_id,
-            title=f"Appointment with {conductor.full_name if conductor else 'Conductor'}",
+            title=f"Appointment with {adviser.full_name if adviser else 'Adviser'}",
             description=notes,
             event_type="appointment",
             start_time=slot.start_time,
@@ -130,7 +130,7 @@ class AppointmentsService:
             source_type="appointment",
         )
         await calendar_repo.create(
-            user_id=slot.conductor_id,
+            user_id=slot.adviser_id,
             title=f"Appointment with {student.full_name if student else 'Student'}",
             description=notes,
             event_type="appointment",
@@ -149,11 +149,21 @@ class AppointmentsService:
             from app.workers.email_tasks import send_email_task
 
             notif = NotificationsService(self.db)
+            # Notify adviser
             await notif.create_notification(
-                user_id=slot.conductor_id,
+                user_id=slot.adviser_id,
                 notification_type="appointment_booked",
                 title="Appointment booked",
-                body=f"Student booked a slot at {slot.start_time}",
+                body=f"Student {student.full_name if student else ''} booked a slot at {slot.start_time.astimezone(ALMATY_TZ).strftime('%Y-%m-%d %H:%M')}",
+                source_id=appt.id,
+                source_type="appointment",
+            )
+            # Notify student
+            await notif.create_notification(
+                user_id=student_id,
+                notification_type="appointment_booked",
+                title="Appointment confirmed",
+                body=f"Your appointment with {adviser.full_name if adviser else 'Adviser'} is confirmed for {slot.start_time.astimezone(ALMATY_TZ).strftime('%Y-%m-%d %H:%M')}",
                 source_id=appt.id,
                 source_type="appointment",
             )
@@ -168,16 +178,16 @@ class AppointmentsService:
                     context={
                         "full_name": student.full_name,
                         "appointment_time": appt_time,
-                        "participant_name": conductor.full_name if conductor else "Conductor",
+                        "participant_name": adviser.full_name if adviser else "Adviser",
                     },
                 )
-            if conductor and conductor.email:
+            if adviser and adviser.email:
                 send_email_task.delay(
-                    to=conductor.email,
+                    to=adviser.email,
                     subject="Appointment confirmed",
                     template="appointment_confirmed.html",
                     context={
-                        "full_name": conductor.full_name,
+                        "full_name": adviser.full_name,
                         "appointment_time": appt_time,
                         "participant_name": student.full_name if student else "Student",
                     },
@@ -189,8 +199,8 @@ class AppointmentsService:
 
         return appt
 
-    async def list_for_conductor(self, conductor_id: UUID):
-        return await self.repo.list_appointments_for_conductor(conductor_id)
+    async def list_for_adviser(self, adviser_id: UUID):
+        return await self.repo.list_appointments_for_adviser(adviser_id)
 
     async def list_for_student(self, student_id: UUID):
         return await self.repo.list_appointments_for_student(student_id)
@@ -207,15 +217,15 @@ class AppointmentsService:
             raise NotFoundException("Appointment not found")
         if requester_role == ROLE_STUDENT and appt.student_id != requester_id:
             raise ForbiddenException("Only the participant can cancel this appointment")
-        if requester_role == ROLE_CONDUCTOR and appt.conductor_id != requester_id:
+        if requester_role == ROLE_ADVISER and appt.adviser_id != requester_id:
             raise ForbiddenException("Only the participant can cancel this appointment")
-        if requester_role not in (ROLE_STUDENT, ROLE_CONDUCTOR, ROLE_ADMIN):
+        if requester_role not in (ROLE_STUDENT, ROLE_ADVISER, ROLE_ADMIN):
             raise ForbiddenException("Only participants can cancel this appointment")
 
-        by_conductor = requester_role in (ROLE_CONDUCTOR, ROLE_ADMIN)
+        by_adviser = requester_role in (ROLE_ADVISER, ROLE_ADMIN)
         status = (
-            APPOINTMENT_STATUS_CANCELLED_BY_CONDUCTOR
-            if by_conductor
+            APPOINTMENT_STATUS_CANCELLED_BY_ADVISER
+            if by_adviser
             else APPOINTMENT_STATUS_CANCELLED_BY_STUDENT
         )
         await self.repo.update_appointment_status(appt, status)
@@ -227,7 +237,7 @@ class AppointmentsService:
 
         calendar_repo = CalendarRepository(self.db)
         await calendar_repo.delete_by_source(appt.student_id, appt.id, "appointment")
-        await calendar_repo.delete_by_source(appt.conductor_id, appt.id, "appointment")
+        await calendar_repo.delete_by_source(appt.adviser_id, appt.id, "appointment")
         await self.db.commit()
 
         try:
@@ -237,14 +247,14 @@ class AppointmentsService:
 
             user_repo = UsersRepository(self.db)
             student = await user_repo.get_by_id(appt.student_id)
-            conductor = await user_repo.get_by_id(appt.conductor_id)
+            adviser = await user_repo.get_by_id(appt.adviser_id)
             slot = await self.repo.get_slot(appt.slot_id) if appt.slot_id else None
             appt_time = (
                 slot.start_time.astimezone(ALMATY_TZ).strftime("%Y-%m-%d %H:%M")
                 if slot
                 else "TBD"
             )
-            reason = cancel_reason or ("Cancelled by conductor" if by_conductor else "Cancelled by student")
+            reason = cancel_reason or ("Cancelled by adviser" if by_adviser else "Cancelled by student")
 
             notifier = NotificationsService(self.db)
             if student:
@@ -256,9 +266,9 @@ class AppointmentsService:
                     source_id=appt.id,
                     source_type="appointment",
                 )
-            if conductor:
+            if adviser:
                 await notifier.create_notification(
-                    user_id=conductor.id,
+                    user_id=adviser.id,
                     notification_type="appointment_cancelled",
                     title="Appointment cancelled",
                     body=f"Appointment for {appt_time} was cancelled.",
@@ -279,13 +289,13 @@ class AppointmentsService:
                         "reason": reason,
                     },
                 )
-            if conductor and conductor.email:
+            if adviser and adviser.email:
                 send_email_task.delay(
-                    to=conductor.email,
+                    to=adviser.email,
                     subject="Appointment cancelled",
                     template="appointment_cancelled.html",
                     context={
-                        "full_name": conductor.full_name,
+                        "full_name": adviser.full_name,
                         "appointment_time": appt_time,
                         "reason": reason,
                     },

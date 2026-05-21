@@ -1,24 +1,24 @@
-from zoneinfo import ZoneInfo
+﻿from zoneinfo import ZoneInfo
 
 # Timezone
 ALMATY_TZ = ZoneInfo("Asia/Almaty")
 
 # Roles
 ROLE_STUDENT = "student"
-ROLE_CONDUCTOR = "conductor"
+ROLE_ADVISER = "adviser"
 ROLE_ADMIN = "admin"
 
 # Pagination
 DEFAULT_PAGE_SIZE = 20
-MAX_PAGE_SIZE = 100
+MAX_PAGE_SIZE = 500
 
 # MinIO bucket names
-BUCKET_DOCUMENTS = "educonductor-documents"
-BUCKET_MESSAGES = "educonductor-messages"
-BUCKET_AVATARS = "educonductor-avatars"
-BUCKET_UNIVERSITIES = "educonductor-universities"
-BUCKET_NEWS = "educonductor-news"
-BUCKET_ALUMNI = "educonductor-alumni"
+BUCKET_DOCUMENTS = "eduadviser-documents"
+BUCKET_MESSAGES = "eduadviser-messages"
+BUCKET_AVATARS = "eduadviser-avatars"
+BUCKET_UNIVERSITIES = "eduadviser-universities"
+BUCKET_NEWS = "eduadviser-news"
+BUCKET_ALUMNI = "eduadviser-alumni"
 
 # All buckets with their public-read policy flag
 MINIO_BUCKETS: dict[str, bool] = {
@@ -65,5 +65,5 @@ TASK_STATUS_OVERDUE = "overdue"
 APPOINTMENT_STATUS_PENDING = "pending"
 APPOINTMENT_STATUS_CONFIRMED = "confirmed"
 APPOINTMENT_STATUS_CANCELLED_BY_STUDENT = "cancelled_by_student"
-APPOINTMENT_STATUS_CANCELLED_BY_CONDUCTOR = "cancelled_by_conductor"
+APPOINTMENT_STATUS_CANCELLED_BY_ADVISER = "cancelled_by_adviser"
 APPOINTMENT_STATUS_COMPLETED = "completed"

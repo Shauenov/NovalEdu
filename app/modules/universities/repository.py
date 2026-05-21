@@ -18,6 +18,7 @@ class UniversitiesRepository:
     async def list_universities(
         self,
         country: str | None = None,
+        is_abroad: bool | None = None,
         field: str | None = None,
         min_gpa: float | None = None,
         max_tuition: int | None = None,
@@ -35,6 +36,10 @@ class UniversitiesRepository:
 
         if country:
             stmt = stmt.where(University.country == country)
+        elif is_abroad is True:
+            stmt = stmt.where(University.country != 'Kazakhstan')
+        elif is_abroad is False:
+            stmt = stmt.where(University.country == 'Kazakhstan')
         if search:
             stmt = stmt.where(University.name.ilike(f"%{search}%"))
 

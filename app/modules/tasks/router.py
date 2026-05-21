@@ -1,4 +1,4 @@
-from typing import Optional
+﻿from typing import Optional
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
@@ -18,7 +18,7 @@ router = APIRouter()
 async def list_student_tasks(
     student_id: UUID,
     status: Optional[str] = Query(None),
-    is_conductor_task: Optional[bool] = Query(None),
+    is_adviser_task: Optional[bool] = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -30,7 +30,7 @@ async def list_student_tasks(
         requester_id=UUID(current_user.user_id),
         requester_role=current_user.role,
         status=status,
-        is_conductor_task=is_conductor_task,
+        is_adviser_task=is_adviser_task,
         page=page,
         page_size=page_size,
     )
@@ -58,14 +58,14 @@ async def get_student_task_stats(
 
 
 @router.post("/students/{student_id}/tasks", response_model=TaskResponse, status_code=201)
-async def create_conductor_task(
+async def create_adviser_task(
     student_id: UUID,
     body: TaskCreate,
     db: AsyncSession = Depends(get_db),
     current_user: CurrentUser = Depends(get_current_user),
 ) -> TaskResponse:
     service = TasksService(db)
-    task = await service.create_conductor_task(
+    task = await service.create_adviser_task(
         student_id=student_id,
         data=body,
         created_by=UUID(current_user.user_id),

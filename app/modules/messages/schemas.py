@@ -1,4 +1,4 @@
-from datetime import datetime
+﻿from datetime import datetime
 from typing import List
 from uuid import UUID
 
@@ -25,9 +25,10 @@ class MessageOut(BaseModel):
 class ConversationOut(BaseModel):
     id: UUID
     student_id: UUID
-    conductor_id: UUID
+    adviser_id: UUID
     last_message_at: datetime | None = None
     created_at: datetime
+    unread_count: int = 0
 
     model_config = {"from_attributes": True}
 

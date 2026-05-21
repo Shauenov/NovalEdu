@@ -1,7 +1,7 @@
 """add task_history table
 
 Revision ID: 0011_task_history
-Revises: 0010_profile_settings_sessions
+Revises: 2dad676f4020
 Create Date: 2026-05-17 20:00:00.000000
 """
 
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 revision = "0011_task_history"
-down_revision = "0010_profile_settings_sessions"
+down_revision = "2dad676f4020"
 branch_labels = None
 depends_on = None
 

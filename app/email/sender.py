@@ -35,7 +35,11 @@ async def send_email(
         plain = plain or context.get("body")
 
     message = EmailMessage()
-    sender = settings.email_host_user or f"noreply@{settings.app_host.split('://')[-1]}"
+    sender = (
+        settings.email_from_address
+        or settings.email_host_user
+        or f"noreply@{settings.app_host.split('://')[-1]}"
+    )
     message["From"] = f"{settings.email_from_name} <{sender}>"
     message["To"] = to
     message["Subject"] = subject

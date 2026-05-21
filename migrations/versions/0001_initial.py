@@ -1,4 +1,4 @@
-"""initial
+﻿"""initial
 
 Revision ID: 0001_initial
 Revises: 
@@ -79,7 +79,7 @@ def upgrade() -> None:
         sa.Column('priority', sa.String(length=10), nullable=True),
         sa.Column('deadline', sa.DateTime(timezone=True), nullable=True),
         sa.Column('completed_at', sa.DateTime(timezone=True), nullable=True),
-        sa.Column('is_conductor_task', sa.Boolean(), nullable=True),
+        sa.Column('is_adviser_task', sa.Boolean(), nullable=True),
         sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
         sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=True),
     )

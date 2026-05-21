@@ -1,4 +1,4 @@
-import asyncio
+﻿import asyncio
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import or_, select
@@ -44,8 +44,8 @@ async def _check_university_staleness() -> int:
             return 0
 
         user_repo = UsersRepository(db)
-        conductor = await user_repo.get_by_email(settings.conductor_email)
-        if not conductor:
+        adviser = await user_repo.get_by_email(settings.ADVISER_email)
+        if not adviser:
             return 0
 
         examples = ", ".join([u.name for u in items[:5]])
@@ -55,7 +55,7 @@ async def _check_university_staleness() -> int:
 
         notifier = NotificationsService(db)
         await notifier.create_notification(
-            user_id=conductor.id,
+            user_id=adviser.id,
             notification_type="university_stale",
             title="Universities need review",
             body=body,
@@ -63,9 +63,9 @@ async def _check_university_staleness() -> int:
         )
         await db.commit()
 
-        if conductor.email:
+        if adviser.email:
             send_email_task.delay(
-                to=conductor.email,
+                to=adviser.email,
                 subject="Universities need review",
                 context={"body": body},
             )

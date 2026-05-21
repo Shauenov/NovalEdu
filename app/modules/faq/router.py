@@ -1,9 +1,9 @@
-from uuid import UUID
+﻿from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.permissions import CurrentUser, get_current_user, require_conductor_or_admin
+from app.core.permissions import CurrentUser, get_current_user, require_ADVISER_or_admin
 from app.core.response import SuccessResponse
 from app.database import get_db
 from app.modules.faq.schemas import FAQCreate, FAQListResponse, FAQOut, FAQResponse, FAQUpdate, ReorderRequest
@@ -28,7 +28,7 @@ async def create_faq(
     body: FAQCreate,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = Depends(require_conductor_or_admin()),
+    current_user: CurrentUser = Depends(require_ADVISER_or_admin()),
 ) -> FAQResponse:
     service = FAQService(db, redis=request.app.state.redis)
     item = await service.create_faq(body, UUID(current_user.user_id), current_user.role)
@@ -41,7 +41,7 @@ async def update_faq(
     body: FAQUpdate,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = Depends(require_conductor_or_admin()),
+    current_user: CurrentUser = Depends(require_ADVISER_or_admin()),
 ) -> FAQResponse:
     service = FAQService(db, redis=request.app.state.redis)
     item = await service.update_faq(faq_id, body, current_user.role)
@@ -53,7 +53,7 @@ async def delete_faq(
     faq_id: UUID,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = Depends(require_conductor_or_admin()),
+    current_user: CurrentUser = Depends(require_ADVISER_or_admin()),
 ) -> SuccessResponse:
     service = FAQService(db, redis=request.app.state.redis)
     await service.delete_faq(faq_id, current_user.role)
@@ -65,7 +65,7 @@ async def reorder_faqs(
     body: ReorderRequest,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = Depends(require_conductor_or_admin()),
+    current_user: CurrentUser = Depends(require_ADVISER_or_admin()),
 ) -> SuccessResponse:
     service = FAQService(db, redis=request.app.state.redis)
     await service.reorder(body, current_user.role)

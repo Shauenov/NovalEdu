@@ -1,0 +1,14 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>New Roadmap</title>
+  </head>
+  <body>
+    <p>Hi {{ full_name }},</p>
+    <p>A new roadmap has been assigned to you: <strong>{{ roadmap_title }}</strong>.</p>
+    {% if description %}
+    <p>{{ description }}</p>
+    {% endif %}
+  </body>
+</html>

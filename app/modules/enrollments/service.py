@@ -1,8 +1,8 @@
-from uuid import UUID
+﻿from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.constants import ROLE_ADMIN, ROLE_CONDUCTOR, ROLE_STUDENT
+from app.core.constants import ROLE_ADMIN, ROLE_ADVISER, ROLE_STUDENT
 from app.core.exceptions import ConflictException, ForbiddenException, NotFoundException
 from app.modules.enrollments.repository import EnrollmentsRepository
 from app.modules.enrollments.schemas import (
@@ -65,8 +65,8 @@ class EnrollmentsService:
         requester_id: UUID,
         requester_role: str,
     ) -> EnrollmentOut:
-        if requester_role not in (ROLE_CONDUCTOR, ROLE_ADMIN):
-            raise ForbiddenException("Only conductor or admin can update enrollment status")
+        if requester_role not in (ROLE_ADVISER, ROLE_ADMIN):
+            raise ForbiddenException("Only ADVISER or admin can update enrollment status")
 
         enrollment = await self.repo.get_by_student_and_university(student_id, university_id)
         if not enrollment:
@@ -84,8 +84,8 @@ class EnrollmentsService:
         page: int,
         page_size: int,
     ) -> PaginatedUniversityEnrollments:
-        if requester_role not in (ROLE_CONDUCTOR, ROLE_ADMIN):
-            raise ForbiddenException("Only conductor or admin can view university enrollments")
+        if requester_role not in (ROLE_ADVISER, ROLE_ADMIN):
+            raise ForbiddenException("Only ADVISER or admin can view university enrollments")
 
         uni_repo = UniversitiesRepository(self.db)
         university = await uni_repo.get_by_id(university_id)

@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field, field_validator
 class ProfileOut(BaseModel):
     id: UUID
     user_id: UUID
-    group_type: Literal["D", "F"]
+    group_type: Literal["D", "D1", "D2", "F", "F1", "F2", "F3", "F4"]
     course_year: int
     gpa: Decimal | None = None
     ielts_passed: bool
@@ -52,7 +52,7 @@ class ProfileOut(BaseModel):
 
 
 class ProfileUpdate(BaseModel):
-    group_type: Literal["D", "F"] | None = None
+    group_type: Literal["D", "D1", "D2", "F", "F1", "F2", "F3", "F4"] | None = None
     course_year: int | None = Field(None, ge=2, le=3)
     gpa: float | None = Field(None, ge=0.0, le=4.0)
     ielts_passed: bool | None = None

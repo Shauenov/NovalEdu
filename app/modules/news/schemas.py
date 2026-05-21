@@ -29,6 +29,7 @@ class NewsBase(BaseModel):
     event_date: date | None = None
     external_url: str | None = Field(None, max_length=500)
     is_published: bool = True
+    allow_calendar: bool = False
 
 
 class NewsCreate(NewsBase):
@@ -43,6 +44,7 @@ class NewsUpdate(BaseModel):
     event_date: date | None = None
     external_url: str | None = Field(None, max_length=500)
     is_published: bool | None = None
+    allow_calendar: bool | None = None
 
 
 class NewsOut(NewsBase):

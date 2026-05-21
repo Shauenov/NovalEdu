@@ -50,7 +50,7 @@ async def register(
 
 
 @router.post("/login", response_model=TokenEnvelope)
-@limiter.limit("5/minute")
+@limiter.limit("20/minute")
 async def login(
     body: LoginRequest,
     request: Request,

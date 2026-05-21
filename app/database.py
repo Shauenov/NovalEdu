@@ -8,7 +8,8 @@ engine = create_async_engine(
     pool_size=10,
     max_overflow=20,
     pool_pre_ping=True,
-    echo=settings.app_env == "development",
+    pool_recycle=1800,          # recycle connections every 30 min
+    echo=False,                  # was True in dev — caused heavy stdout I/O per request
 )
 
 AsyncSessionLocal = async_sessionmaker(

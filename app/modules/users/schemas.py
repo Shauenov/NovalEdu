@@ -42,6 +42,8 @@ class StudentListItem(BaseModel):
     avatar_url: str | None = None
     tasks_total: int = 0
     tasks_done: int = 0
+    tasks_overdue: int = 0
+    tasks_in_progress: int = 0
     unread_messages: int = 0
 
     model_config = {"from_attributes": True}

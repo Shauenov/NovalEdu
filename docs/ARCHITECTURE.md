@@ -1,27 +1,27 @@
-# EduConductor Architecture
+﻿# eduadviser Architecture
 
-This document describes the EduConductor backend at two architectural levels. The first diagram shows the system in its external context, while the second explains the internal container boundaries and runtime responsibilities.
+This document describes the eduadviser backend at two architectural levels. The first diagram shows the system in its external context, while the second explains the internal container boundaries and runtime responsibilities.
 
 ## C4 Level 1: Context
 
-This level shows the EduConductor system as a single software boundary and the people and external services it interacts with. It is useful for explaining who uses the platform and which outside systems the backend depends on.
+This level shows the eduadviser system as a single software boundary and the people and external services it interacts with. It is useful for explaining who uses the platform and which outside systems the backend depends on.
 
 ```mermaid
 flowchart TD
     Student["Student\n[Flutter App]"]
-    Conductor["Conductor / Admin\n[Web Dashboard]"]
+    ADVISER["ADVISER / Admin\n[Web Dashboard]"]
     SMTP["Email Service\n[SMTP / Brevo]"]
 
-    System["EduConductor\n[Software System]\nAdmission and student support platform"]
+    System["eduadviser\n[Software System]\nAdmission and student support platform"]
 
     Student -->|"View tasks, upload CV, book slots"| System
-    Conductor -->|"Manage profiles, assign roadmaps, send updates"| System
+    ADVISER -->|"Manage profiles, assign roadmaps, send updates"| System
     System -->|"Send OTPs, reminders, and system alerts"| SMTP
 ```
 
 - Student: uses the Flutter mobile app to manage personal progress, documents, tasks, and appointments.
-- Conductor / Admin: uses the web dashboard to manage students, content, roadmaps, and operations.
-- EduConductor: the core software system that exposes the backend API and business workflows.
+- ADVISER / Admin: uses the web dashboard to manage students, content, roadmaps, and operations.
+- eduadviser: the core software system that exposes the backend API and business workflows.
 - Email Service: external SMTP provider used for OTPs, reminders, and transactional notifications.
 
 ## C4 Level 2: Container
@@ -31,10 +31,10 @@ This level breaks the system into deployable runtime containers and shows how re
 ```mermaid
 flowchart TB
     Student["Student\n[Flutter App]"]
-    Conductor["Conductor\n[Web Dashboard]"]
+    ADVISER["ADVISER\n[Web Dashboard]"]
     SMTP["Email Service\n[SMTP / Brevo]"]
 
-    subgraph EduConductor_System["EduConductor System"]
+    subgraph eduadviser_System["eduadviser System"]
         direction TB
 
         Nginx["Reverse Proxy\n[Nginx]\nSSL termination and routing"]
@@ -46,7 +46,7 @@ flowchart TB
     end
 
     Student -->|"HTTPS / JSON"| Nginx
-    Conductor -->|"HTTPS / JSON"| Nginx
+    ADVISER -->|"HTTPS / JSON"| Nginx
 
     Nginx -->|"Proxy Pass"| API
 

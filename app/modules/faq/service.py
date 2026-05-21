@@ -1,9 +1,9 @@
-import json
+﻿import json
 from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.constants import CACHE_TTL_FAQS, ROLE_ADMIN, ROLE_CONDUCTOR
+from app.core.constants import CACHE_TTL_FAQS, ROLE_ADMIN, ROLE_ADVISER
 from app.core.exceptions import ForbiddenException, NotFoundException
 from app.modules.faq.repository import FAQRepository
 from app.modules.faq.schemas import FAQCreate, FAQUpdate, FAQOut, ReorderRequest
@@ -33,16 +33,16 @@ class FAQService:
         return results
 
     async def create_faq(self, data: FAQCreate, created_by: UUID, requester_role: str) -> FAQOut:
-        if requester_role not in (ROLE_ADMIN, ROLE_CONDUCTOR):
-            raise ForbiddenException("Only conductor or admin can create FAQs")
+        if requester_role not in (ROLE_ADMIN, ROLE_ADVISER):
+            raise ForbiddenException("Only ADVISER or admin can create FAQs")
         faq = await self.repo.create(created_by=created_by, **data.model_dump())
         await self.db.commit()
         await self._invalidate_cache()
         return FAQOut.model_validate(faq)
 
     async def update_faq(self, faq_id: UUID, data: FAQUpdate, requester_role: str) -> FAQOut:
-        if requester_role not in (ROLE_ADMIN, ROLE_CONDUCTOR):
-            raise ForbiddenException("Only conductor or admin can update FAQs")
+        if requester_role not in (ROLE_ADMIN, ROLE_ADVISER):
+            raise ForbiddenException("Only ADVISER or admin can update FAQs")
         faq = await self.repo.get_by_id(faq_id)
         if not faq:
             raise NotFoundException("FAQ not found")
@@ -52,8 +52,8 @@ class FAQService:
         return FAQOut.model_validate(updated)
 
     async def delete_faq(self, faq_id: UUID, requester_role: str) -> None:
-        if requester_role not in (ROLE_ADMIN, ROLE_CONDUCTOR):
-            raise ForbiddenException("Only conductor or admin can delete FAQs")
+        if requester_role not in (ROLE_ADMIN, ROLE_ADVISER):
+            raise ForbiddenException("Only ADVISER or admin can delete FAQs")
         faq = await self.repo.get_by_id(faq_id)
         if not faq:
             raise NotFoundException("FAQ not found")
@@ -62,8 +62,8 @@ class FAQService:
         await self._invalidate_cache()
 
     async def reorder(self, data: ReorderRequest, requester_role: str) -> None:
-        if requester_role not in (ROLE_ADMIN, ROLE_CONDUCTOR):
-            raise ForbiddenException("Only conductor or admin can reorder FAQs")
+        if requester_role not in (ROLE_ADMIN, ROLE_ADVISER):
+            raise ForbiddenException("Only ADVISER or admin can reorder FAQs")
         items = [(i.id, i.order_index) for i in data.items]
         await self.repo.reorder(items)
         await self.db.commit()
