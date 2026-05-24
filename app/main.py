@@ -146,6 +146,7 @@ def create_app() -> FastAPI:
             settings.frontend_url,
             "https://nobal.tech",
             "https://www.nobal.tech",
+            "https://admin.nobal.tech",
             "http://localhost:3000",
             "http://localhost:8080",
         ],
