@@ -141,6 +141,19 @@ pytest -q
 docker exec ec_postgres psql -U nobal -d nobal -c "select version_num from alembic_version;"
 ```
 
+## Admin module (new)
+- `GET /api/v1/admin/stats` — user counts, by-role breakdown, growth chart (admin only)
+- `GET /api/v1/admin/users` — list all users with search/role/status filters + pagination (admin only)
+- `POST /api/v1/admin/users` — create any-role user (admin only)
+- `GET /api/v1/admin/users/{id}` — get single user (admin only)
+- `PATCH /api/v1/admin/users/{id}` — update user fields: full_name, email, role, is_active (admin only)
+- `POST /api/v1/admin/users/{id}/reset-password` — set new password (admin only)
+- `DELETE /api/v1/admin/users/{id}` — hard-delete user, cannot self-delete (admin only)
+- `GET /api/v1/admin/advisers` — list advisers with profile + review aggregates (admin only)
+
+Files: `app/modules/admin/{__init__,schemas,repository,service,router}.py`
+Registered in: `app/routers.py` → `api_router.include_router(admin_router, tags=["Admin"])`
+
 ## API highlights to keep in sync with frontend/mobile
 - Tasks:
   - `GET /students/{student_id}/tasks`
