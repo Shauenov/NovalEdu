@@ -26,6 +26,10 @@ class ConversationOut(BaseModel):
     id: UUID
     student_id: UUID
     adviser_id: UUID
+    student_name: str | None = None
+    student_avatar_url: str | None = None
+    adviser_name: str | None = None
+    adviser_avatar_url: str | None = None
     last_message_at: datetime | None = None
     created_at: datetime
     unread_count: int = 0

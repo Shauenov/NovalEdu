@@ -22,7 +22,7 @@ class TasksService:
         requester_role: str,
     ) -> TaskOut:
         if requester_role not in (ROLE_ADVISER, ROLE_ADMIN):
-            raise ForbiddenException("Only ADVISER or admin can create tasks for students")
+            raise ForbiddenException("Only adviser or admin can create tasks for students")
 
         task = await self.repo.create(
             student_id=student_id,
@@ -128,7 +128,7 @@ class TasksService:
         if not task:
             raise NotFoundException("Task not found")
         if requester_role not in (ROLE_ADVISER, ROLE_ADMIN):
-            raise ForbiddenException("Only ADVISER or admin can update tasks")
+            raise ForbiddenException("Only adviser or admin can update tasks")
 
         changed_fields = data.model_dump(exclude_unset=True)
         updated = await self.repo.update(task, changed_fields)
@@ -196,7 +196,7 @@ class TasksService:
         )
         await self.db.commit()
 
-        # Notify ADVISER when student marks task done
+        # Notify adviser when student marks task done
         if data.status == "done":
             try:
                 from app.modules.notifications.service import NotificationsService
@@ -222,7 +222,7 @@ class TasksService:
         if not task:
             raise NotFoundException("Task not found")
         if requester_role not in (ROLE_ADVISER, ROLE_ADMIN):
-            raise ForbiddenException("Only ADVISER or admin can delete tasks")
+            raise ForbiddenException("Only adviser or admin can delete tasks")
         await self.repo.delete(task)
         await self.db.commit()
 
@@ -261,6 +261,7 @@ class TasksService:
         requester_role: str,
         status: str | None = None,
         is_adviser_task: bool | None = None,
+        student_roadmap_id: UUID | None = None,
         page: int = 1,
         page_size: int = DEFAULT_PAGE_SIZE,
     ) -> tuple[list[TaskOut], int]:
@@ -271,6 +272,7 @@ class TasksService:
             student_id=student_id,
             status=status,
             is_adviser_task=is_adviser_task,
+            student_roadmap_id=student_roadmap_id,
             page=page,
             page_size=page_size,
         )

@@ -78,8 +78,37 @@ class StudentRoadmapOut(BaseModel):
     title: str
     assigned_at: datetime
     is_active: bool
+    progress: int = 0
 
     model_config = {"from_attributes": True}
+
+
+class RoadmapStageOut(BaseModel):
+    """A single stage of a student's assigned roadmap (backed by a Task)."""
+    id: UUID
+    title: str
+    description: str | None = None
+    status: str
+    deadline: datetime | None = None
+    is_adviser_task: bool = False
+
+    model_config = {"from_attributes": True}
+
+
+class MyRoadmapOut(BaseModel):
+    """A student's assigned roadmap with progress and its stages, in one object."""
+    id: UUID
+    roadmap_id: UUID | None
+    title: str
+    assigned_at: datetime
+    is_active: bool
+    progress: int = 0
+    stages: list[RoadmapStageOut] = []
+
+
+class MyRoadmapsResponse(BaseModel):
+    success: bool = True
+    data: list[MyRoadmapOut]
 
 
 class PaginatedMeta(BaseModel):

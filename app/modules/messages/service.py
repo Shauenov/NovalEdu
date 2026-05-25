@@ -42,13 +42,51 @@ class MessagesService:
 
     async def get_or_create_my_conversation(self, student_id: UUID):
         user_repo = UsersRepository(self.db)
-        adviser = await user_repo.get_by_email(settings.ADVISER_email)
+        # Tolerate both the renamed (adviser_email) and legacy (ADVISER_email)
+        # settings attribute so this works regardless of the deployed config copy.
+        adviser_email = getattr(settings, "adviser_email", None) or getattr(settings, "ADVISER_email", None)
+        adviser = await user_repo.get_by_email(adviser_email) if adviser_email else None
         if not adviser:
             raise NotFoundException("Adviser not found")
         return await self.repo.get_or_create_conversation(student_id, adviser.id)
 
     async def list_conversations_for_user(self, user_id: UUID, is_adviser: bool):
         return await self.repo.list_conversations_for_user(user_id, is_adviser)
+
+    async def list_conversations_with_unread(self, user_id: UUID, is_adviser: bool):
+        return await self.repo.list_conversations_with_unread(user_id, is_adviser)
+
+    async def _conv_dict(self, convo, unread: int) -> dict:
+        """Conversation enriched with both participants' name + avatar."""
+        from app.core.constants import BUCKET_AVATARS
+        from app.storage.minio_client import resolve_public_url
+        urepo = UsersRepository(self.db)
+        student = await urepo.get_by_id(convo.student_id)
+        adviser = await urepo.get_by_id(convo.adviser_id)
+        return {
+            "id": convo.id,
+            "student_id": convo.student_id,
+            "adviser_id": convo.adviser_id,
+            "student_name": student.full_name if student else None,
+            "student_avatar_url": resolve_public_url(BUCKET_AVATARS, student.avatar_url) if student else None,
+            "adviser_name": adviser.full_name if adviser else None,
+            "adviser_avatar_url": resolve_public_url(BUCKET_AVATARS, adviser.avatar_url) if adviser else None,
+            "last_message_at": convo.last_message_at,
+            "created_at": convo.created_at,
+            "unread_count": unread,
+        }
+
+    async def list_conversations_enriched(self, user_id: UUID, is_adviser: bool) -> list[dict]:
+        rows = await self.repo.list_conversations_with_unread(user_id, is_adviser)
+        return [await self._conv_dict(c, unread) for c, unread in rows]
+
+    async def get_my_conversation_enriched(self, student_id: UUID) -> dict:
+        convo = await self.get_or_create_my_conversation(student_id)
+        unread = await self.count_unread_for_conversation(convo.id, student_id)
+        return await self._conv_dict(convo, unread)
+
+    async def count_unread_for_conversation(self, convo_id: UUID, user_id: UUID) -> int:
+        return await self.repo.count_unread_for_conversation(convo_id, user_id)
 
     async def list_messages(self, convo_id: UUID, limit: int = 50, offset: int = 0) -> list[dict]:
         rows = await self.repo.list_messages_with_sender(convo_id, limit=limit, offset=offset)

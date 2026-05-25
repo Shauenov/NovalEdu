@@ -19,6 +19,7 @@ async def list_student_tasks(
     student_id: UUID,
     status: Optional[str] = Query(None),
     is_adviser_task: Optional[bool] = Query(None),
+    student_roadmap_id: Optional[UUID] = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
@@ -31,6 +32,7 @@ async def list_student_tasks(
         requester_role=current_user.role,
         status=status,
         is_adviser_task=is_adviser_task,
+        student_roadmap_id=student_roadmap_id,
         page=page,
         page_size=page_size,
     )

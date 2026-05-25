@@ -52,7 +52,7 @@ def require_student():
     return require_roles(ROLE_STUDENT)
 
 
-def require_ADVISER():
+def require_adviser():
     return require_roles(ROLE_ADVISER)
 
 
@@ -60,9 +60,16 @@ def require_admin():
     return require_roles(ROLE_ADMIN)
 
 
-def require_ADVISER_or_admin():
+def require_adviser_or_admin():
     return require_roles(ROLE_ADVISER, ROLE_ADMIN)
 
 
 def require_any_authenticated():
     return require_roles(ROLE_STUDENT, ROLE_ADVISER, ROLE_ADMIN)
+
+
+# ── Backward-compat aliases ──────────────────────────────────────────────────
+# Legacy CamelCase names kept so modules that still import the pre-rename
+# identifiers keep working (e.g. a deployed copy not yet fully re-synced).
+require_ADVISER = require_adviser
+require_ADVISER_or_admin = require_adviser_or_admin

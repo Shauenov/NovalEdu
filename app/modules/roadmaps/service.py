@@ -5,14 +5,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.constants import DEFAULT_PAGE_SIZE, ROLE_ADMIN, ROLE_ADVISER, ROLE_STUDENT
 from app.core.exceptions import ForbiddenException, NotFoundException, ValidationException
+from app.modules.calendar.repository import CalendarRepository
 from app.modules.calendar.schemas import CalendarEventCreate
-from app.modules.calendar.service import CalendarService
 from app.modules.enrollments.repository import EnrollmentsRepository
 from app.modules.notifications.service import NotificationsService
 from app.modules.roadmaps.repository import RoadmapsRepository
 from app.modules.roadmaps.schemas import RoadmapCreate, RoadmapUpdate, AssignRequest
-from app.modules.tasks.schemas import TaskCreate
-from app.modules.tasks.service import TasksService
+from app.modules.tasks.repository import TasksRepository
 
 
 class RoadmapsService:
@@ -40,7 +39,7 @@ class RoadmapsService:
 
     async def create_roadmap(self, data: RoadmapCreate, created_by: UUID, requester_role: str):
         if requester_role not in (ROLE_ADMIN, ROLE_ADVISER):
-            raise ForbiddenException("Only ADVISER or admin can create roadmaps")
+            raise ForbiddenException("Only adviser or admin can create roadmaps")
 
         roadmap = await self.repo.create_roadmap(
             title=data.title,
@@ -65,7 +64,7 @@ class RoadmapsService:
 
     async def update_roadmap(self, roadmap_id: UUID, data: RoadmapUpdate, requester_role: str):
         if requester_role not in (ROLE_ADMIN, ROLE_ADVISER):
-            raise ForbiddenException("Only ADVISER or admin can update roadmaps")
+            raise ForbiddenException("Only adviser or admin can update roadmaps")
         roadmap = await self.repo.get_by_id(roadmap_id)
         if not roadmap:
             raise NotFoundException("Roadmap not found")
@@ -77,7 +76,7 @@ class RoadmapsService:
 
     async def delete_roadmap(self, roadmap_id: UUID, requester_role: str) -> None:
         if requester_role not in (ROLE_ADMIN, ROLE_ADVISER):
-            raise ForbiddenException("Only ADVISER or admin can delete roadmaps")
+            raise ForbiddenException("Only adviser or admin can delete roadmaps")
         roadmap = await self.repo.get_by_id(roadmap_id)
         if not roadmap:
             raise NotFoundException("Roadmap not found")
@@ -92,11 +91,38 @@ class RoadmapsService:
         requester_role: str,
     ):
         if requester_role not in (ROLE_ADMIN, ROLE_ADVISER):
-            raise ForbiddenException("Only ADVISER or admin can assign roadmaps")
+            raise ForbiddenException("Only adviser or admin can assign roadmaps")
 
         roadmap = await self.repo.get_by_id(roadmap_id)
         if not roadmap:
             raise NotFoundException("Roadmap not found")
+
+        # ── 1. Pre-compute & validate EVERY deadline before any DB write, so an
+        #       invalid deadline can never leave behind a half-created assignment.
+        template_tasks = await self.repo.list_template_tasks(roadmap.id)
+        overrides = {t.template_task_id: t.deadline for t in data.customize_tasks}
+        now = datetime.now(tz=timezone.utc)
+        planned: list[tuple] = []
+        for tmpl in template_tasks:
+            deadline = overrides.get(tmpl.id)
+            if deadline is not None:
+                # Custom deadline chosen by the adviser must be in the future.
+                if deadline <= now:
+                    raise ValidationException("Task deadline must be in the future")
+            elif tmpl.days_offset is not None:
+                # Auto-computed from the template; days_offset 0 means "due today".
+                # Keep it strictly in the future so the task is always valid.
+                deadline = now + timedelta(days=tmpl.days_offset)
+                if deadline <= now:
+                    deadline = now + timedelta(days=1)
+            planned.append((tmpl, deadline))
+
+        # ── 2. All DB writes happen in a SINGLE transaction. Repositories only
+        #       flush; the one commit below makes the whole assignment atomic —
+        #       if anything fails, nothing is persisted (no orphan roadmaps).
+        tasks_repo = TasksRepository(self.db)
+        calendar_repo = CalendarRepository(self.db)
+        enroll_repo = EnrollmentsRepository(self.db)
 
         student_roadmap = await self.repo.create_student_roadmap(
             student_id=data.student_id,
@@ -104,11 +130,9 @@ class RoadmapsService:
             assigned_by=assigned_by,
             title=roadmap.title,
         )
-        await self.db.commit()
 
         # Auto-enroll student in the linked university (if any)
         if roadmap.university_id:
-            enroll_repo = EnrollmentsRepository(self.db)
             existing = await enroll_repo.get_by_student_and_university(
                 data.student_id, roadmap.university_id
             )
@@ -119,60 +143,45 @@ class RoadmapsService:
                     status="selected",
                     progress=0,
                 )
-                await self.db.commit()
 
-        template_tasks = await self.repo.list_template_tasks(roadmap.id)
-        overrides = {t.template_task_id: t.deadline for t in data.customize_tasks}
-        now = datetime.now(tz=timezone.utc)
-
-        tasks_service = TasksService(self.db)
-        calendar_service = CalendarService(self.db)
-
-        for tmpl in template_tasks:
-            deadline = overrides.get(tmpl.id)
-            if deadline is None and tmpl.days_offset is not None:
-                deadline = now + timedelta(days=tmpl.days_offset)
-
-            if deadline is not None and deadline <= now:
-                raise ValidationException("Task deadline must be in the future")
-
-            task_data = TaskCreate(
+        created_tasks = []
+        for tmpl, deadline in planned:
+            task = await tasks_repo.create(
+                student_id=data.student_id,
+                created_by=assigned_by,
                 title=tmpl.title,
                 description=tmpl.description,
                 deadline=deadline,
                 student_roadmap_id=student_roadmap.id,
+                is_adviser_task=True,
             )
-
-            task = await tasks_service.create_adviser_task(
-                student_id=data.student_id,
-                data=task_data,
-                created_by=assigned_by,
-                requester_role=requester_role,
-            )
-
-            if deadline:
-                await calendar_service.create_event(
-                    data.student_id,
-                    CalendarEventCreate(
-                        title=task.title,
-                        description=task.description,
-                        event_type="task_deadline",
-                        start_time=deadline,
-                        end_time=None,
-                        all_day=True,
-                        color=None,
-                        source_id=task.id,
-                        source_type="task",
-                    ),
+            await tasks_repo.add_history(task.id, assigned_by, "created", new_value=tmpl.title)
+            if deadline is not None:
+                event = CalendarEventCreate(
+                    title=task.title,
+                    description=task.description,
+                    event_type="task_deadline",
+                    start_time=deadline,
+                    end_time=None,
+                    all_day=True,
+                    color=None,
+                    source_id=task.id,
+                    source_type="task",
                 )
+                await calendar_repo.create(user_id=data.student_id, **event.model_dump())
+            created_tasks.append(task)
 
+        # Single commit — everything above succeeds or rolls back together.
+        await self.db.commit()
+
+        # ── 3. Best-effort side effects AFTER commit (never affect integrity). ──
         try:
             notifier = NotificationsService(self.db)
             await notifier.create_notification(
                 user_id=data.student_id,
                 notification_type="roadmap_assigned",
                 title="New roadmap assigned",
-                body=f"Roadmap '{roadmap.title}' was assigned to you",
+                body=f"Roadmap '{roadmap.title}' was assigned to you ({len(created_tasks)} tasks)",
                 source_id=student_roadmap.id,
                 source_type="roadmap",
             )
@@ -201,4 +210,42 @@ class RoadmapsService:
     async def list_student_roadmaps(self, student_id: UUID, requester_id: UUID, requester_role: str):
         if requester_role == ROLE_STUDENT and requester_id != student_id:
             raise ForbiddenException("Students can only view their own roadmaps")
-        return await self.repo.list_student_roadmaps(student_id)
+        return await self.repo.list_student_roadmaps_with_progress(student_id)
+
+    async def get_my_roadmaps(self, student_id: UUID) -> list[dict]:
+        """Student-facing: each assigned roadmap with progress + its stages (tasks),
+        ready to render the mobile 'My roadmap' screen in a single call."""
+        rows = await self.repo.list_student_roadmaps_with_progress(student_id)
+        tasks_repo = TasksRepository(self.db)
+        out: list[dict] = []
+        for sr, progress in rows:
+            tasks, _ = await tasks_repo.list_for_student(
+                student_id=student_id,
+                student_roadmap_id=sr.id,
+                page=1,
+                page_size=500,
+            )
+            tasks = sorted(
+                tasks,
+                key=lambda t: (t.deadline is None, t.deadline or datetime.max.replace(tzinfo=timezone.utc)),
+            )
+            out.append({
+                "id": sr.id,
+                "roadmap_id": sr.roadmap_id,
+                "title": sr.title,
+                "assigned_at": sr.assigned_at,
+                "is_active": sr.is_active,
+                "progress": progress,
+                "stages": [
+                    {
+                        "id": t.id,
+                        "title": t.title,
+                        "description": t.description,
+                        "status": t.status,
+                        "deadline": t.deadline,
+                        "is_adviser_task": t.is_adviser_task,
+                    }
+                    for t in tasks
+                ],
+            })
+        return out

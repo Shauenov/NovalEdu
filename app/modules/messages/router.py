@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, File, Form, Query, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.core.permissions import CurrentUser, get_current_user, require_ADVISER_or_admin, require_student
+from app.core.permissions import CurrentUser, get_current_user, require_adviser_or_admin, require_student
 from app.core.response import SuccessResponse
 from app.modules.messages.service import MessagesService
 from app.modules.messages.schemas import (
@@ -30,8 +30,8 @@ async def list_conversations(
 ):
     svc = MessagesService(db)
     is_adviser = current_user.role != "student"
-    convos = await svc.list_conversations_for_user(UUID(current_user.user_id), is_adviser)
-    return ConversationsResponse(data=[ConversationOut.model_validate(c) for c in convos])
+    rows = await svc.list_conversations_enriched(UUID(current_user.user_id), is_adviser)
+    return ConversationsResponse(data=[ConversationOut(**c) for c in rows])
 
 
 @router.get("/conversations/my", response_model=ConversationResponse)
@@ -40,8 +40,8 @@ async def get_my_conversation(
     current_user: CurrentUser = Depends(require_student()),
 ):
     svc = MessagesService(db)
-    convo = await svc.get_or_create_my_conversation(UUID(current_user.user_id))
-    return ConversationResponse(data=ConversationOut.model_validate(convo))
+    c = await svc.get_my_conversation_enriched(UUID(current_user.user_id))
+    return ConversationResponse(data=ConversationOut(**c))
 
 
 @router.get("/conversations/{convo_id}/messages", response_model=MessagesResponse)
@@ -102,7 +102,7 @@ async def send_image_message(
 async def broadcast_message(
     body: BroadcastRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = Depends(require_ADVISER_or_admin()),
+    current_user: CurrentUser = Depends(require_adviser_or_admin()),
 ):
     svc = MessagesService(db)
     if body.filter_group or body.ielts_passed is not None:
@@ -130,7 +130,7 @@ async def broadcast_image_message(
     filter_group: str | None = Form(None),
     ielts_passed: bool | None = Form(None),
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = Depends(require_ADVISER_or_admin()),
+    current_user: CurrentUser = Depends(require_adviser_or_admin()),
 ):
     svc = MessagesService(db)
     if filter_group or ielts_passed is not None:

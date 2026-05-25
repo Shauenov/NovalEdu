@@ -4,7 +4,12 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.constants import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
-from app.core.permissions import CurrentUser, get_current_user, require_ADVISER_or_admin
+from app.core.permissions import (
+    CurrentUser,
+    get_current_user,
+    require_adviser_or_admin,
+    require_student,
+)
 from app.core.response import SuccessResponse
 from app.database import get_db
 from app.modules.roadmaps.schemas import (
@@ -21,6 +26,8 @@ from app.modules.roadmaps.schemas import (
     RoadmapResponse,
     StudentRoadmapResponse,
     StudentRoadmapsResponse,
+    MyRoadmapOut,
+    MyRoadmapsResponse,
 )
 from app.modules.roadmaps.service import RoadmapsService
 
@@ -40,6 +47,17 @@ async def list_roadmaps(
         data=[RoadmapOut.model_validate(r) for r in items],
         meta=PaginatedMeta(page=page, page_size=page_size, total=total),
     )
+
+
+@router.get("/roadmaps/my", response_model=MyRoadmapsResponse)
+async def get_my_roadmaps(
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(require_student()),
+) -> MyRoadmapsResponse:
+    """Student's assigned roadmap(s) with progress + stages, in one call."""
+    service = RoadmapsService(db)
+    data = await service.get_my_roadmaps(UUID(current_user.user_id))
+    return MyRoadmapsResponse(data=[MyRoadmapOut(**r) for r in data])
 
 
 @router.get("/roadmaps/{roadmap_id}", response_model=RoadmapDetailResponse)
@@ -62,7 +80,7 @@ async def get_roadmap(
 async def create_roadmap(
     body: RoadmapCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = Depends(require_ADVISER_or_admin()),
+    current_user: CurrentUser = Depends(require_adviser_or_admin()),
 ) -> RoadmapResponse:
     service = RoadmapsService(db)
     roadmap = await service.create_roadmap(body, UUID(current_user.user_id), current_user.role)
@@ -74,7 +92,7 @@ async def update_roadmap(
     roadmap_id: UUID,
     body: RoadmapUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = Depends(require_ADVISER_or_admin()),
+    current_user: CurrentUser = Depends(require_adviser_or_admin()),
 ) -> RoadmapResponse:
     service = RoadmapsService(db)
     roadmap = await service.update_roadmap(roadmap_id, body, current_user.role)
@@ -85,7 +103,7 @@ async def update_roadmap(
 async def delete_roadmap(
     roadmap_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = Depends(require_ADVISER_or_admin()),
+    current_user: CurrentUser = Depends(require_adviser_or_admin()),
 ) -> SuccessResponse:
     service = RoadmapsService(db)
     await service.delete_roadmap(roadmap_id, current_user.role)
@@ -97,7 +115,7 @@ async def assign_roadmap(
     roadmap_id: UUID,
     body: AssignRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = Depends(require_ADVISER_or_admin()),
+    current_user: CurrentUser = Depends(require_adviser_or_admin()),
 ) -> StudentRoadmapResponse:
     service = RoadmapsService(db)
     item = await service.assign_roadmap(roadmap_id, body, UUID(current_user.user_id), current_user.role)
@@ -111,5 +129,19 @@ async def list_student_roadmaps(
     current_user: CurrentUser = Depends(get_current_user),
 ) -> StudentRoadmapsResponse:
     service = RoadmapsService(db)
-    items = await service.list_student_roadmaps(student_id, UUID(current_user.user_id), current_user.role)
-    return StudentRoadmapsResponse(data=[StudentRoadmapOut.model_validate(i) for i in items])
+    rows = await service.list_student_roadmaps(student_id, UUID(current_user.user_id), current_user.role)
+    return StudentRoadmapsResponse(
+        data=[
+            StudentRoadmapOut(
+                id=sr.id,
+                student_id=sr.student_id,
+                roadmap_id=sr.roadmap_id,
+                assigned_by=sr.assigned_by,
+                title=sr.title,
+                assigned_at=sr.assigned_at,
+                is_active=sr.is_active,
+                progress=progress,
+            )
+            for sr, progress in rows
+        ]
+    )
