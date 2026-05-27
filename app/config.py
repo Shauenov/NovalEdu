@@ -50,9 +50,9 @@ class Settings(BaseSettings):
     # MinIO public endpoint (for frontend access)
     minio_public_endpoint: str = Field("localhost:9000", alias="MINIO_PUBLIC_ENDPOINT")
 
-    # ADVISER
-    ADVISER_email: str = Field("ADVISER@college.edu.kz", alias="ADVISER_EMAIL")
-    ADVISER_initial_password: str = Field("change_immediately", alias="ADVISER_INITIAL_PASSWORD")
+    # Adviser bootstrap account
+    adviser_email: str = Field("adviser@college.edu.kz", alias="ADVISER_EMAIL")
+    adviser_initial_password: str = Field("change_immediately", alias="ADVISER_INITIAL_PASSWORD")
 
     model_config = {"env_file": ".env", "populate_by_name": True, "extra": "ignore"}
 

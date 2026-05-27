@@ -44,7 +44,7 @@ async def _check_university_staleness() -> int:
             return 0
 
         user_repo = UsersRepository(db)
-        adviser = await user_repo.get_by_email(settings.ADVISER_email)
+        adviser = await user_repo.get_by_email(settings.adviser_email)
         if not adviser:
             return 0
 

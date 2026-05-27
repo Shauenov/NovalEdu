@@ -9,7 +9,7 @@ from app.core.constants import BUCKET_UNIVERSITIES, DEFAULT_PAGE_SIZE, MAX_PAGE_
 from app.core.permissions import (
     CurrentUser,
     get_current_user,
-    require_ADVISER_or_admin,
+    require_adviser_or_admin,
 )
 from app.core.response import SuccessResponse
 from app.database import get_db
@@ -26,6 +26,8 @@ from app.modules.universities.schemas import (
     UniversityDetailResponse,
     UniversityProgramResponse,
     UniversityResponse,
+    RecommendedUniversityOut,
+    RecommendedUniversitiesResponse,
 )
 from app.modules.universities.service import UniversitiesService
 
@@ -67,6 +69,23 @@ async def list_universities(
     )
 
 
+@router.get("/recommended", response_model=RecommendedUniversitiesResponse)
+async def recommended_universities(
+    limit: int = Query(10, ge=1, le=50),
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(get_current_user),
+) -> RecommendedUniversitiesResponse:
+    """Universities ranked by how well they match the current student's profile."""
+    service = UniversitiesService(db)
+    rows = await service.recommend_for_student(UUID(current_user.user_id), limit=limit)
+    items: list[RecommendedUniversityOut] = []
+    for uni, score in rows:
+        obj = RecommendedUniversityOut.model_validate(uni)
+        obj.match_score = score
+        items.append(obj)
+    return RecommendedUniversitiesResponse(data=items)
+
+
 @router.get("/{university_id}", response_model=UniversityDetailResponse)
 async def get_university(
     university_id: UUID,
@@ -88,7 +107,7 @@ async def get_university(
 async def create_university(
     body: UniversityCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = Depends(require_ADVISER_or_admin()),
+    current_user: CurrentUser = Depends(require_adviser_or_admin()),
 ) -> UniversityResponse:
     service = UniversitiesService(db)
     uni = await service.create_university(body, current_user.role)
@@ -100,7 +119,7 @@ async def update_university(
     university_id: UUID,
     body: UniversityUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = Depends(require_ADVISER_or_admin()),
+    current_user: CurrentUser = Depends(require_adviser_or_admin()),
 ) -> UniversityResponse:
     service = UniversitiesService(db)
     uni = await service.update_university(university_id, body, current_user.role)
@@ -111,7 +130,7 @@ async def update_university(
 async def delete_university(
     university_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = Depends(require_ADVISER_or_admin()),
+    current_user: CurrentUser = Depends(require_adviser_or_admin()),
 ) -> SuccessResponse:
     service = UniversitiesService(db)
     await service.delete_university(university_id, current_user.role)
@@ -123,7 +142,7 @@ async def upload_university_logo(
     university_id: UUID,
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = Depends(require_ADVISER_or_admin()),
+    current_user: CurrentUser = Depends(require_adviser_or_admin()),
 ) -> UniversityResponse:
     logo_url = await process_and_upload_image(
         file=file, bucket=BUCKET_UNIVERSITIES, prefix=f"{university_id}/logo"
@@ -140,7 +159,7 @@ async def upload_university_cover(
     university_id: UUID,
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = Depends(require_ADVISER_or_admin()),
+    current_user: CurrentUser = Depends(require_adviser_or_admin()),
 ) -> UniversityResponse:
     cover_url = await process_and_upload_image(
         file=file, bucket=BUCKET_UNIVERSITIES, prefix=f"{university_id}/cover"
@@ -161,7 +180,7 @@ async def add_program(
     university_id: UUID,
     body: UniversityProgramCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = Depends(require_ADVISER_or_admin()),
+    current_user: CurrentUser = Depends(require_adviser_or_admin()),
 ) -> UniversityProgramResponse:
     service = UniversitiesService(db)
     program = await service.create_program(university_id, body, current_user.role)
@@ -176,7 +195,7 @@ async def update_program(
     program_id: UUID,
     body: UniversityProgramUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = Depends(require_ADVISER_or_admin()),
+    current_user: CurrentUser = Depends(require_adviser_or_admin()),
 ) -> UniversityProgramResponse:
     service = UniversitiesService(db)
     program = await service.update_program(
@@ -190,7 +209,7 @@ async def delete_program(
     university_id: UUID,
     program_id: UUID,
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = Depends(require_ADVISER_or_admin()),
+    current_user: CurrentUser = Depends(require_adviser_or_admin()),
 ) -> SuccessResponse:
     service = UniversitiesService(db)
     await service.delete_program(university_id, program_id, current_user.role)

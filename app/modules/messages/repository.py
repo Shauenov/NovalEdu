@@ -58,6 +58,8 @@ class MessagesRepository:
             stmt = stmt.where(Conversation.adviser_id == user_id)
         else:
             stmt = stmt.where(Conversation.student_id == user_id)
+        # Most recently active conversations first; new conversations (no messages) go last
+        stmt = stmt.order_by(Conversation.last_message_at.desc().nulls_last())
         result = await self.db.execute(stmt)
         return [(row[0], int(row[1] or 0)) for row in result.all()]
 

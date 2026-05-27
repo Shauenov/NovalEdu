@@ -109,6 +109,10 @@ class AuthService:
         if not user.is_active:
             raise AppException(403, ErrorCode.FORBIDDEN, "Account is deactivated")
 
+        # Two-factor: if enabled for this user, a valid TOTP code is required.
+        from app.modules.auth.two_factor import TwoFactorService
+        await TwoFactorService(self.db).verify_login_code(user.id, data.totp_code)
+
         return await self._issue_tokens(user, device_name=device_name, ip_address=ip_address)
 
     async def refresh_tokens(self, data: RefreshRequest) -> AccessTokenResponse:

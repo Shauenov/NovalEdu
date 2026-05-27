@@ -72,6 +72,29 @@ class UniversitiesRepository:
         result = await self.db.execute(stmt)
         return result.scalars().all(), total
 
+    async def list_published_with_programs(
+        self,
+    ) -> list[tuple[University, list[UniversityProgram]]]:
+        """All published universities, each paired with its active programs."""
+        unis = (
+            await self.db.execute(select(University).where(University.is_published == True))
+        ).scalars().all()
+        if not unis:
+            return []
+        uni_ids = [u.id for u in unis]
+        progs = (
+            await self.db.execute(
+                select(UniversityProgram).where(
+                    UniversityProgram.university_id.in_(uni_ids),
+                    UniversityProgram.is_active == True,
+                )
+            )
+        ).scalars().all()
+        by_uni: dict = {}
+        for p in progs:
+            by_uni.setdefault(p.university_id, []).append(p)
+        return [(u, by_uni.get(u.id, [])) for u in unis]
+
     async def create_university(self, **kwargs) -> University:
         university = University(**kwargs)
         self.db.add(university)

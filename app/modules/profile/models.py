@@ -19,7 +19,7 @@ class StudentProfile(Base):
         unique=True,
         nullable=False,
     )
-    group_type: Mapped[str] = mapped_column(String(2), nullable=False)        # D | D1 | D2 | F | F1 | F2 | F3 | F4
+    group_type: Mapped[str] = mapped_column(String(2), nullable=False)        # D1 | D2 | F1 | F2 | F3 | F4
     course_year: Mapped[int] = mapped_column(SmallInteger, nullable=False)    # 2 | 3
     gpa: Mapped[Decimal | None] = mapped_column(Numeric(3, 2), nullable=True)
     ielts_passed: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -42,6 +42,7 @@ class StudentProfile(Base):
     degree_level: Mapped[str | None] = mapped_column(String(20), nullable=True)  # bachelor | master | phd
     target_countries: Mapped[str | None] = mapped_column(Text, nullable=True)    # JSON array as text
     budget_max: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    intake_semester: Mapped[str | None] = mapped_column(String(20), nullable=True)  # fall_2024 | spring_2025
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

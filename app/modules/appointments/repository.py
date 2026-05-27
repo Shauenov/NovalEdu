@@ -104,3 +104,30 @@ class AppointmentsRepository:
     async def update_appointment_status(self, appt: Appointment, status: str) -> None:
         appt.status = status
         await self.db.flush()
+
+    async def get_next_for_student(self, student_id: UUID, now: datetime) -> dict | None:
+        """The student's earliest active (pending/confirmed) appointment whose slot
+        hasn't ended yet — covers both "happening now" and "next upcoming"."""
+        stmt = (
+            select(Appointment, User.full_name, User.avatar_url,
+                   AvailabilitySlot.start_time, AvailabilitySlot.end_time)
+            .join(User, User.id == Appointment.student_id)
+            .join(AvailabilitySlot, AvailabilitySlot.id == Appointment.slot_id)
+            .where(
+                Appointment.student_id == student_id,
+                Appointment.status.in_(['pending', 'confirmed']),
+                AvailabilitySlot.end_time > now,
+            )
+            .order_by(AvailabilitySlot.start_time.asc())
+            .limit(1)
+        )
+        row = (await self.db.execute(stmt)).first()
+        if not row:
+            return None
+        appt, full_name, avatar_url, slot_start, slot_end = row
+        d = {k: v for k, v in appt.__dict__.items() if not k.startswith('_')}
+        d['student_name'] = full_name
+        d['student_avatar_url'] = avatar_url
+        d['slot_start_time'] = slot_start
+        d['slot_end_time'] = slot_end
+        return d

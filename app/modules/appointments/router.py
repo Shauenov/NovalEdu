@@ -5,7 +5,7 @@ from fastapi import APIRouter, Body, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.core.permissions import CurrentUser, get_current_user, require_ADVISER_or_admin, require_student
+from app.core.permissions import CurrentUser, get_current_user, require_adviser_or_admin, require_student
 from app.core.response import SuccessResponse
 from app.modules.appointments.service import AppointmentsService
 from app.modules.appointments.schemas import (
@@ -38,7 +38,7 @@ async def list_slots(
 async def create_slot(
     body: SlotCreate | SlotsBatchCreate = Body(...),
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = Depends(require_ADVISER_or_admin()),
+    current_user: CurrentUser = Depends(require_adviser_or_admin()),
 ):
     svc = AppointmentsService(db)
     if isinstance(body, SlotsBatchCreate):
@@ -58,7 +58,7 @@ async def create_slot(
 
 
 @router.delete("/slots/{slot_id}", response_model=SuccessResponse)
-async def delete_slot(slot_id: UUID, db: AsyncSession = Depends(get_db), current_user: CurrentUser = Depends(require_ADVISER_or_admin())):
+async def delete_slot(slot_id: UUID, db: AsyncSession = Depends(get_db), current_user: CurrentUser = Depends(require_adviser_or_admin())):
     # For simplicity: soft-delete not implemented — leave for future
     svc = AppointmentsService(db)
     slot = await svc.repo.get_slot(slot_id)
@@ -125,7 +125,7 @@ async def cancel_appointment(
 
 
 @router.patch("/{appointment_id}/complete", response_model=SuccessResponse)
-async def complete_appointment(appointment_id: UUID, db: AsyncSession = Depends(get_db), current_user: CurrentUser = Depends(require_ADVISER_or_admin())):
+async def complete_appointment(appointment_id: UUID, db: AsyncSession = Depends(get_db), current_user: CurrentUser = Depends(require_adviser_or_admin())):
     svc = AppointmentsService(db)
     await svc.complete(appointment_id)
     return SuccessResponse()

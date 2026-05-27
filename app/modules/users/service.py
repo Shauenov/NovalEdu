@@ -1,4 +1,5 @@
-﻿from uuid import UUID
+﻿from datetime import datetime, timezone
+from uuid import UUID
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -6,6 +7,8 @@ from app.config import settings
 from app.core.constants import DEFAULT_PAGE_SIZE, ROLE_ADMIN, ROLE_ADVISER
 from app.core.exceptions import ForbiddenException, NotFoundException
 from app.core.security import hash_password
+from app.modules.appointments.repository import AppointmentsRepository
+from app.modules.appointments.schemas import AppointmentOut
 from app.modules.profile.repository import ProfileRepository
 from app.modules.users.repository import UsersRepository
 from app.modules.users.schemas import (
@@ -40,7 +43,7 @@ class UsersService:
     async def get_student(
         self, student_id: UUID, requester_id: UUID, requester_role: str
     ) -> dict:
-        # Self-access OR ADVISER/admin
+        # Self-access OR adviser/admin
         if requester_role not in (ROLE_ADVISER, ROLE_ADMIN) and requester_id != student_id:
             raise ForbiddenException("Access denied")
 
@@ -50,9 +53,19 @@ class UsersService:
 
         profile = await self.profile_repo.get_by_user_id(student_id)
 
+        # Earliest active appointment whose slot hasn't ended yet (or None).
+        appt_repo = AppointmentsRepository(self.db)
+        appt_dict = await appt_repo.get_next_for_student(student_id, datetime.now(timezone.utc))
+        next_appointment = (
+            AppointmentOut.model_validate(appt_dict).model_dump(mode='json')
+            if appt_dict
+            else None
+        )
+
         return {
             "user": UserOut.model_validate(user).model_dump(),
             "profile": {k: v for k, v in profile.__dict__.items() if not k.startswith('_')} if profile else None,
+            "next_appointment": next_appointment,
         }
 
     async def list_students(
@@ -68,7 +81,7 @@ class UsersService:
         page_size: int = DEFAULT_PAGE_SIZE,
     ) -> PaginatedStudents:
         if requester_role not in (ROLE_ADVISER, ROLE_ADMIN):
-            raise ForbiddenException("Only ADVISER or admin can list students")
+            raise ForbiddenException("Only adviser or admin can list students")
 
         rows, total = await self.repo.list_students(
             group_type=group_type,
@@ -135,7 +148,7 @@ class UsersService:
         requester_role: str,
     ) -> UserOut:
         if requester_role not in (ROLE_ADVISER, ROLE_ADMIN):
-            raise ForbiddenException("Only ADVISER or admin can invite students")
+            raise ForbiddenException("Only adviser or admin can invite students")
         existing = await self.repo.get_by_email(email)
         if existing:
             from app.core.exceptions import ConflictException, ErrorCode

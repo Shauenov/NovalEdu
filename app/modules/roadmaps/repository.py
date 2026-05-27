@@ -79,3 +79,37 @@ class RoadmapsRepository:
             .order_by(StudentRoadmap.assigned_at.desc())
         )
         return result.scalars().all()
+
+    async def list_student_roadmaps_with_progress(
+        self, student_id: UUID
+    ) -> list[tuple[StudentRoadmap, int]]:
+        """Return the student's roadmaps with completion progress (0-100),
+        computed from the share of linked tasks that are done."""
+        from app.modules.tasks.models import Task
+
+        agg = (
+            select(
+                Task.student_roadmap_id.label("sr_id"),
+                func.count().label("total"),
+                func.count().filter(Task.status == "done").label("done"),
+            )
+            .where(Task.student_roadmap_id.isnot(None))
+            .group_by(Task.student_roadmap_id)
+            .subquery()
+        )
+        stmt = (
+            select(
+                StudentRoadmap,
+                func.coalesce(agg.c.total, 0),
+                func.coalesce(agg.c.done, 0),
+            )
+            .outerjoin(agg, agg.c.sr_id == StudentRoadmap.id)
+            .where(StudentRoadmap.student_id == student_id)
+            .order_by(StudentRoadmap.assigned_at.desc())
+        )
+        result = await self.db.execute(stmt)
+        out: list[tuple[StudentRoadmap, int]] = []
+        for sr, total, done in result.all():
+            progress = round(done / total * 100) if total else 0
+            out.append((sr, progress))
+        return out

@@ -37,6 +37,10 @@ class ConversationOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class CreateConversationRequest(BaseModel):
+    student_id: UUID
+
+
 class SendMessageRequest(BaseModel):
     body: str = Field(..., min_length=1, max_length=2000)
 

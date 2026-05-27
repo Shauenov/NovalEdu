@@ -302,7 +302,7 @@ async def seed_data() -> None:
         # ── Staff ────────────────────────────────────────────────────────
         admin = await _get_or_create_user(session, ADMIN_EMAIL, "Nobal Admin", ROLE_ADMIN)
         adviser = await _get_or_create_user(
-            session, settings.ADVISER_email, "Nobal Adviser", ROLE_ADVISER
+            session, settings.adviser_email, "Nobal Adviser", ROLE_ADVISER
         )
 
         # ── Students + profiles ──────────────────────────────────────────
@@ -324,7 +324,7 @@ async def seed_data() -> None:
             profiles.append(
                 StudentProfile(
                     user_id=student.id,
-                    group_type=["D", "D1", "D2", "F", "F1", "F2", "F3", "F4"][i % 8],
+                    group_type=["D1", "D2", "F1", "F2", "F3", "F4"][i % 6],
                     course_year=2 if i % 2 == 0 else 3,
                     gpa=Decimal("3.0") + Decimal("0.1") * (i % 10),
                     ielts_passed=ielts_passed,
@@ -360,7 +360,7 @@ async def seed_data() -> None:
                     city=city,
                     website_url=f"https://example.edu/{idx + 1}",
                     description=f"{name} is located in {city}, {country}. A strong choice for ambitious students.",
-                    acceptance_rate=accept,
+                    acceptance_rate=accept / 100,  # stored as a 0–1 fraction
                     total_students=total,
                     international_pct=intl,
                     qs_ranking=qs,
@@ -464,7 +464,9 @@ async def seed_data() -> None:
                 )
         session.add_all(template_tasks)
 
-        # ── Student roadmaps (1-2 per student) ───────────────────────────
+        # ── Student roadmaps (one active roadmap per student) ─────────────
+        # Each student roadmap gets its template tasks created below, so we
+        # never leave behind an empty (task-less) assignment.
         student_roadmaps: list[StudentRoadmap] = []
         sr_by_student: dict[uuid.UUID, StudentRoadmap] = {}
         for i, student in enumerate(students):
@@ -478,17 +480,6 @@ async def seed_data() -> None:
             )
             student_roadmaps.append(sr)
             sr_by_student[student.id] = sr
-            if i % 3 == 0:
-                secondary = roadmaps[(i + 3) % len(roadmaps)]
-                student_roadmaps.append(
-                    StudentRoadmap(
-                        student_id=student.id,
-                        roadmap_id=secondary.id,
-                        assigned_by=adviser.id,
-                        title=secondary.title,
-                        is_active=False,
-                    )
-                )
         session.add_all(student_roadmaps)
         await session.flush()
 

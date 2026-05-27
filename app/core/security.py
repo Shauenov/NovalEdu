@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -37,8 +37,10 @@ def create_access_token(user_id: UUID, role: str, email: str) -> str:
 
 
 def create_refresh_token(user_id: UUID) -> str:
+    # jti makes every refresh token unique even for same-user logins issued
+    # within the same second (avoids token_hash unique-constraint collisions).
     return _create_token(
-        {"sub": str(user_id), "type": "refresh"},
+        {"sub": str(user_id), "type": "refresh", "jti": uuid4().hex},
         timedelta(days=settings.jwt_refresh_token_expire_days),
     )
 

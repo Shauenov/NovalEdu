@@ -34,7 +34,7 @@ class FAQService:
 
     async def create_faq(self, data: FAQCreate, created_by: UUID, requester_role: str) -> FAQOut:
         if requester_role not in (ROLE_ADMIN, ROLE_ADVISER):
-            raise ForbiddenException("Only ADVISER or admin can create FAQs")
+            raise ForbiddenException("Only adviser or admin can create FAQs")
         faq = await self.repo.create(created_by=created_by, **data.model_dump())
         await self.db.commit()
         await self._invalidate_cache()
@@ -42,7 +42,7 @@ class FAQService:
 
     async def update_faq(self, faq_id: UUID, data: FAQUpdate, requester_role: str) -> FAQOut:
         if requester_role not in (ROLE_ADMIN, ROLE_ADVISER):
-            raise ForbiddenException("Only ADVISER or admin can update FAQs")
+            raise ForbiddenException("Only adviser or admin can update FAQs")
         faq = await self.repo.get_by_id(faq_id)
         if not faq:
             raise NotFoundException("FAQ not found")
@@ -53,7 +53,7 @@ class FAQService:
 
     async def delete_faq(self, faq_id: UUID, requester_role: str) -> None:
         if requester_role not in (ROLE_ADMIN, ROLE_ADVISER):
-            raise ForbiddenException("Only ADVISER or admin can delete FAQs")
+            raise ForbiddenException("Only adviser or admin can delete FAQs")
         faq = await self.repo.get_by_id(faq_id)
         if not faq:
             raise NotFoundException("FAQ not found")
@@ -63,7 +63,7 @@ class FAQService:
 
     async def reorder(self, data: ReorderRequest, requester_role: str) -> None:
         if requester_role not in (ROLE_ADMIN, ROLE_ADVISER):
-            raise ForbiddenException("Only ADVISER or admin can reorder FAQs")
+            raise ForbiddenException("Only adviser or admin can reorder FAQs")
         items = [(i.id, i.order_index) for i in data.items]
         await self.repo.reorder(items)
         await self.db.commit()

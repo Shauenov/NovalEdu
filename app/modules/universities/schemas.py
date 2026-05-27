@@ -21,6 +21,7 @@ class UniversityBase(BaseModel):
     international_pct: float | None = Field(None, ge=0.0, le=100.0)
     qs_ranking: int | None = Field(None, ge=1)
     the_ranking: int | None = Field(None, ge=1)
+    popularity: int | None = Field(None, ge=0, le=100)
     language_of_instr: str | None = Field(None, max_length=100)
     is_published: bool = True
     last_verified_at: datetime | None = None
@@ -60,6 +61,7 @@ class UniversityUpdate(BaseModel):
     international_pct: float | None = Field(None, ge=0.0, le=100.0)
     qs_ranking: int | None = Field(None, ge=1)
     the_ranking: int | None = Field(None, ge=1)
+    popularity: int | None = Field(None, ge=0, le=100)
     language_of_instr: str | None = Field(None, max_length=100)
     is_published: bool | None = None
     last_verified_at: datetime | None = None
@@ -141,6 +143,15 @@ class UniversityProgramOut(UniversityProgramBase):
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class RecommendedUniversityOut(UniversityOut):
+    match_score: int = 0
+
+
+class RecommendedUniversitiesResponse(BaseModel):
+    success: bool = True
+    data: list[RecommendedUniversityOut]
 
 
 class UniversityDetail(BaseModel):

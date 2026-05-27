@@ -26,14 +26,16 @@ class UserNotificationSettings(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False
     )
-    # Push / Email
+    # Push / Email / SMS
     push_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     email_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    sms_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     # Academic
     deadline_alerts: Mapped[bool] = mapped_column(Boolean, default=True)
     roadmap_changes: Mapped[bool] = mapped_column(Boolean, default=True)
     new_messages: Mapped[bool] = mapped_column(Boolean, default=True)
     task_updates: Mapped[bool] = mapped_column(Boolean, default=True)
+    university_news: Mapped[bool] = mapped_column(Boolean, default=True)
     # System
     security_alerts: Mapped[bool] = mapped_column(Boolean, default=True)
     app_updates: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -48,10 +50,12 @@ class UserNotificationSettings(Base):
 class NotificationSettingsOut(BaseModel):
     push_enabled: bool
     email_enabled: bool
+    sms_enabled: bool
     deadline_alerts: bool
     roadmap_changes: bool
     new_messages: bool
     task_updates: bool
+    university_news: bool
     security_alerts: bool
     app_updates: bool
 
@@ -61,10 +65,12 @@ class NotificationSettingsOut(BaseModel):
 class NotificationSettingsUpdate(BaseModel):
     push_enabled: bool | None = None
     email_enabled: bool | None = None
+    sms_enabled: bool | None = None
     deadline_alerts: bool | None = None
     roadmap_changes: bool | None = None
     new_messages: bool | None = None
     task_updates: bool | None = None
+    university_news: bool | None = None
     security_alerts: bool | None = None
     app_updates: bool | None = None
 

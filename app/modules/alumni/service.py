@@ -27,14 +27,14 @@ class AlumniService:
 
     async def create_story(self, data: AlumniCreate, author_id: UUID, requester_role: str):
         if requester_role not in (ROLE_ADMIN, ROLE_ADVISER):
-            raise ForbiddenException("Only ADVISER or admin can create alumni stories")
+            raise ForbiddenException("Only adviser or admin can create alumni stories")
         story = await self.repo.create(author_id=author_id, **data.model_dump())
         await self.db.commit()
         return story
 
     async def update_story(self, story_id: UUID, data: AlumniUpdate, requester_role: str):
         if requester_role not in (ROLE_ADMIN, ROLE_ADVISER):
-            raise ForbiddenException("Only ADVISER or admin can update alumni stories")
+            raise ForbiddenException("Only adviser or admin can update alumni stories")
         story = await self.repo.get_by_id(story_id)
         if not story:
             raise NotFoundException("Story not found")
@@ -44,7 +44,7 @@ class AlumniService:
 
     async def delete_story(self, story_id: UUID, requester_role: str) -> None:
         if requester_role not in (ROLE_ADMIN, ROLE_ADVISER):
-            raise ForbiddenException("Only ADVISER or admin can delete alumni stories")
+            raise ForbiddenException("Only adviser or admin can delete alumni stories")
         story = await self.repo.get_by_id(story_id)
         if not story:
             raise NotFoundException("Story not found")

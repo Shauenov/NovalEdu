@@ -12,7 +12,7 @@ class RegisterRequest(BaseModel):
     email: EmailStr
     full_name: str = Field(..., min_length=2, max_length=255)
     password: str = Field(..., min_length=8, max_length=128)
-    group_type: Literal["D", "D1", "D2", "F", "F1", "F2", "F3", "F4"]
+    group_type: Literal["D1", "D2", "F1", "F2", "F3", "F4"]
     course_year: int = Field(..., ge=2, le=3)
     gpa: float | None = Field(None, ge=0.0, le=4.0)
     ielts_passed: bool = False
@@ -35,6 +35,7 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str
+    totp_code: str | None = Field(None, max_length=10)  # required only if 2FA is enabled
 
 
 class RefreshRequest(BaseModel):

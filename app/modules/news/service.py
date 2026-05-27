@@ -47,14 +47,14 @@ class NewsService:
 
     async def create_news(self, data: NewsCreate, author_id: UUID, requester_role: str):
         if requester_role not in (ROLE_ADMIN, ROLE_ADVISER):
-            raise ForbiddenException("Only ADVISER or admin can create news")
+            raise ForbiddenException("Only adviser or admin can create news")
         item = await self.repo.create(author_id=author_id, **data.model_dump())
         await self.db.commit()
         return item
 
     async def update_news(self, news_id: UUID, data: NewsUpdate, requester_role: str):
         if requester_role not in (ROLE_ADMIN, ROLE_ADVISER):
-            raise ForbiddenException("Only ADVISER or admin can update news")
+            raise ForbiddenException("Only adviser or admin can update news")
         item = await self.repo.get_by_id(news_id)
         if not item:
             raise NotFoundException("News not found")
@@ -64,7 +64,7 @@ class NewsService:
 
     async def delete_news(self, news_id: UUID, requester_role: str) -> None:
         if requester_role not in (ROLE_ADMIN, ROLE_ADVISER):
-            raise ForbiddenException("Only ADVISER or admin can delete news")
+            raise ForbiddenException("Only adviser or admin can delete news")
         item = await self.repo.get_by_id(news_id)
         if not item:
             raise NotFoundException("News not found")

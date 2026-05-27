@@ -12,6 +12,7 @@ from app.modules.messages.schemas import (
     BroadcastResult,
     ConversationResponse,
     ConversationsResponse,
+    CreateConversationRequest,
     MessageResponse,
     MessagesResponse,
     MessageOut,
@@ -32,6 +33,20 @@ async def list_conversations(
     is_adviser = current_user.role != "student"
     rows = await svc.list_conversations_enriched(UUID(current_user.user_id), is_adviser)
     return ConversationsResponse(data=[ConversationOut(**c) for c in rows])
+
+
+@router.post("/conversations", response_model=ConversationResponse, status_code=201)
+async def create_conversation(
+    body: CreateConversationRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: CurrentUser = Depends(require_adviser_or_admin()),
+):
+    """Get or create a conversation between the current adviser and a student."""
+    svc = MessagesService(db)
+    convo = await svc.get_or_create_conversation(body.student_id, UUID(current_user.user_id))
+    await db.commit()
+    enriched = await svc._conv_dict(convo, 0)
+    return ConversationResponse(data=ConversationOut(**enriched))
 
 
 @router.get("/conversations/my", response_model=ConversationResponse)

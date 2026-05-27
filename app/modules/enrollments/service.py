@@ -66,7 +66,7 @@ class EnrollmentsService:
         requester_role: str,
     ) -> EnrollmentOut:
         if requester_role not in (ROLE_ADVISER, ROLE_ADMIN):
-            raise ForbiddenException("Only ADVISER or admin can update enrollment status")
+            raise ForbiddenException("Only adviser or admin can update enrollment status")
 
         enrollment = await self.repo.get_by_student_and_university(student_id, university_id)
         if not enrollment:
@@ -85,7 +85,7 @@ class EnrollmentsService:
         page_size: int,
     ) -> PaginatedUniversityEnrollments:
         if requester_role not in (ROLE_ADVISER, ROLE_ADMIN):
-            raise ForbiddenException("Only ADVISER or admin can view university enrollments")
+            raise ForbiddenException("Only adviser or admin can view university enrollments")
 
         uni_repo = UniversitiesRepository(self.db)
         university = await uni_repo.get_by_id(university_id)

@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field, field_validator
 class ProfileOut(BaseModel):
     id: UUID
     user_id: UUID
-    group_type: Literal["D", "D1", "D2", "F", "F1", "F2", "F3", "F4"]
+    group_type: Literal["D1", "D2", "F1", "F2", "F3", "F4"]
     course_year: int
     gpa: Decimal | None = None
     ielts_passed: bool
@@ -33,6 +33,7 @@ class ProfileOut(BaseModel):
     degree_level: Literal["bachelor", "master", "phd"] | None = None
     target_countries: list[str] = []
     budget_max: int | None = None
+    intake_semester: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -52,7 +53,7 @@ class ProfileOut(BaseModel):
 
 
 class ProfileUpdate(BaseModel):
-    group_type: Literal["D", "D1", "D2", "F", "F1", "F2", "F3", "F4"] | None = None
+    group_type: Literal["D1", "D2", "F1", "F2", "F3", "F4"] | None = None
     course_year: int | None = Field(None, ge=2, le=3)
     gpa: float | None = Field(None, ge=0.0, le=4.0)
     ielts_passed: bool | None = None
@@ -75,6 +76,7 @@ class ProfileUpdate(BaseModel):
     degree_level: Literal["bachelor", "master", "phd"] | None = None
     target_countries: list[str] | None = None
     budget_max: int | None = Field(None, ge=0)
+    intake_semester: str | None = Field(None, max_length=20)
 
 
 class ProfileResponse(BaseModel):

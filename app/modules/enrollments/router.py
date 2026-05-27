@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.constants import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE
-from app.core.permissions import CurrentUser, get_current_user, require_ADVISER_or_admin
+from app.core.permissions import CurrentUser, get_current_user, require_adviser_or_admin
 from app.core.response import SuccessResponse
 from app.database import get_db
 from app.modules.enrollments.schemas import (
@@ -33,7 +33,7 @@ async def list_university_enrollments(
     page: int = Query(1, ge=1),
     page_size: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = Depends(require_ADVISER_or_admin()),
+    current_user: CurrentUser = Depends(require_adviser_or_admin()),
 ) -> PaginatedUniversityEnrollments:
     svc = EnrollmentsService(db)
     return await svc.list_university_enrollments(
@@ -90,7 +90,7 @@ async def update_enrollment(
     university_id: UUID,
     body: EnrollmentUpdateRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: CurrentUser = Depends(require_ADVISER_or_admin()),
+    current_user: CurrentUser = Depends(require_adviser_or_admin()),
 ) -> EnrollmentResponse:
     svc = EnrollmentsService(db)
     enrollment = await svc.update_enrollment(

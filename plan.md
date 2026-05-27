@@ -20,7 +20,7 @@ nobal-backend/
 │   ├── core/
 │   │   ├── security.py           # JWT create/verify, bcrypt hash/verify
 │   │   ├── exceptions.py         # AppException + ErrorCode enum
-│   │   ├── permissions.py        # RBAC: require_student(), require_ADVISER_or_admin()
+│   │   ├── permissions.py        # RBAC: require_student(), require_adviser_or_admin()
 │   │   └── constants.py          # ALMATY_TZ, pagination defaults, etc.
 │   │
 │   ├── modules/

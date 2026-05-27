@@ -19,7 +19,7 @@ async def test_messages_flow(async_client: AsyncClient, db_session: AsyncSession
     )
     ADVISER = User(
         id=uuid.uuid4(),
-        email=settings.ADVISER_email,
+        email=settings.adviser_email,
         full_name="System ADVISER",
         password_hash=hash_password("pass"),
         role="adviser",

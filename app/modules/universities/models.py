@@ -25,6 +25,7 @@ class University(Base):
     international_pct: Mapped[Decimal | None] = mapped_column(Numeric(5, 2), nullable=True)
     qs_ranking: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     the_ranking: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
+    popularity: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)  # 0-100 popularity score
     language_of_instr: Mapped[str | None] = mapped_column(String(100), nullable=True)
     is_published: Mapped[bool] = mapped_column(Boolean, default=True)
     last_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
